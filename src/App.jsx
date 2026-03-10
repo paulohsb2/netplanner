@@ -25,6 +25,72 @@ const LAYERS = [
 
 const SIZES = { small: 24, medium: 32, large: 42 };
 
+/* ═══ ICON VARIANTS (SVG paths, viewBox 0 0 24 24) ═══ */
+const ICON_VARIANTS = {
+  camera: [
+    { name: "Dome", path: "M12 16c-4.4 0-8-2.2-8-5h16c0 2.8-3.6 5-8 5zm-8-5a8 8 0 0116 0M12 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" },
+    { name: "Bullet", path: "M3 10h2v4H3a1 1 0 01-1-1v-2a1 1 0 011-1zm2-1h12a3 3 0 010 6H5V9zm15 1.5a1.5 1.5 0 110 3v-3z" },
+    { name: "Box", path: "M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1zm5 3a3 3 0 106 0 3 3 0 00-6 0zm3 1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM4 15h16" },
+    { name: "PTZ", path: "M12 6a6 6 0 00-6 6h12a6 6 0 00-6-6zm0 4a2 2 0 100-4 2 2 0 000 4zm-1 3h2v4h3l-4 4-4-4h3v-4z" },
+    { name: "Turret", path: "M12 4a5 5 0 00-5 5c0 2 1.5 3.5 3 4.5V16h4v-2.5c1.5-1 3-2.5 3-4.5a5 5 0 00-5-5zm0 3a2 2 0 110 4 2 2 0 010-4zM8 17h8v2H8z" },
+  ],
+  wifi: [
+    { name: "AP Teto", path: "M4 13h16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm2-1l6-6 6 6M12 6v1m0 2a1 1 0 100 2 1 1 0 000-2z" },
+    { name: "AP Parede", path: "M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm6 4a4 4 0 00-4 4m4-2a2 2 0 00-2 2m2 0a.5.5 0 100 1 .5.5 0 000-1z" },
+    { name: "AP Externo", path: "M8 20V10l4-6 4 6v10M10 14h4m-2-4v2m-5 2h10M7 20h10" },
+    { name: "Antena", path: "M12 20V8m0 0l-3-4m3 4l3-4M8 12a4 4 0 018 0M5 10a7 7 0 0114 0M12 14a1 1 0 100-2 1 1 0 000 2z" },
+    { name: "Mesh", path: "M12 4l7 4v8l-7 4-7-4V8l7-4zm0 4a2 2 0 100 4 2 2 0 000-4zm0 8v-2m4-6l-2 1m-6-1l2 1" },
+  ],
+  switch: [
+    { name: "Rack", path: "M3 7h18a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm2 3h2m2 0h2m2 0h2m2 0h2M5 13h2m2 0h2m2 0h2m2 0h2" },
+    { name: "Desktop", path: "M4 8h16a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm2 2.5a.5.5 0 110 1 .5.5 0 010-1zm3 0a.5.5 0 110 1 .5.5 0 010-1zm3 0a.5.5 0 110 1 .5.5 0 010-1zm3 0a.5.5 0 110 1 .5.5 0 010-1zM17 12h2" },
+    { name: "PoE", path: "M3 6h18v4H3V6zm0 6h18v4H3v-4zm2 1.5h1m2 0h1m2 0h1m2 0h1m-12-6h1m2 0h1m2 0h1m2 0h1M20 12l2-1v4l-2-1" },
+    { name: "Gerenciável", path: "M3 5h18a1 1 0 011 1v12a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm1 2h8v3H4V7zm10 1h5M14 10h5M4 12h16m-16 2h2m2 0h2m2 0h2m2 0h2" },
+    { name: "Industrial", path: "M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zm2 4h2v2H7V7zm4 0h2v2h-2V7zm4 0h2v2h-2V7zM7 12h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z" },
+  ],
+  router: [
+    { name: "Enterprise", path: "M2 14h20v4a1 1 0 01-1 1H3a1 1 0 01-1-1v-4zm3 1.5a.5.5 0 110 1 .5.5 0 010-1zm3 0a.5.5 0 110 1 .5.5 0 010-1zM18 16h2M6 14V8l6-4 6 4v6" },
+    { name: "Home", path: "M4 12h16a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4a1 1 0 011-1zm1 2h2m8 0a.5.5 0 110 1 .5.5 0 010-1zm3 0a.5.5 0 110 1 .5.5 0 010-1zM7 12V9m5-4v7m5-5v5" },
+    { name: "Firewall", path: "M3 6h18a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V7a1 1 0 011-1zm9 2v8M8 10v4m4-6v8m4-6v4M5 12h14" },
+    { name: "Gateway", path: "M4 8h16a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm2 2v4m2-4v4m2-4v4m2-4v4m2-4v4m2-4v4M2 11h1m18 0h1" },
+    { name: "Mesh", path: "M12 3a3 3 0 110 6 3 3 0 010-6zm-7 9a2 2 0 110 4 2 2 0 010-4zm14 0a2 2 0 110 4 2 2 0 010-4zM12 9v3m-4.5 2.5L10 12m4 2.5L14 12" },
+  ],
+  nvr: [
+    { name: "Rack NVR", path: "M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zm1 2h14v4H5V6zm0 6h14v4H5v-4zM17 8a.5.5 0 110 1 .5.5 0 010-1zm0 6a.5.5 0 110 1 .5.5 0 010-1zM7 8h6m-6 6h6" },
+    { name: "Desktop NVR", path: "M3 7h18a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm2 2h4v4H5V9zm6 1h7M11 12h5M11 14h3M18 9a1 1 0 110 2 1 1 0 010-2z" },
+    { name: "Servidor", path: "M7 2h10a2 2 0 012 2v16a2 2 0 01-2 2H7a2 2 0 01-2-2V4a2 2 0 012-2zm1 3h8v3H8V5zm0 5h8v3H8v-3zM15 6.5a.5.5 0 110 1 .5.5 0 010-1zm0 5a.5.5 0 110 1 .5.5 0 010-1zM10 17a2 2 0 104 0 2 2 0 00-4 0z" },
+    { name: "Storage", path: "M3 5h18a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm0 7h18a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3a1 1 0 011-1zm14-5.5a.5.5 0 110 1 .5.5 0 010-1zm0 7a.5.5 0 110 1 .5.5 0 010-1zM6 7.5h6m-6 7h6" },
+    { name: "Mini NVR", path: "M6 8h12a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4a2 2 0 012-2zm1 2a1 1 0 100 2 1 1 0 000-2zm4 0h6M11 13h4" },
+  ],
+};
+
+/* SVG icon component for equipment */
+const EquipIcon = ({ type, variant = 0, size = 16, color = "#fff" }) => {
+  const variants = ICON_VARIANTS[type];
+  if (!variants) return null;
+  const v = variants[variant] || variants[0];
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d={v.path} />
+    </svg>
+  );
+};
+
+/* Draw equipment icon on canvas context */
+const drawEquipIconCanvas = (ctx, type, variant, x, y, size, color) => {
+  ctx.save();
+  ctx.translate(x - size / 2, y - size / 2);
+  ctx.scale(size / 24, size / 24);
+  const variants = ICON_VARIANTS[type];
+  const v = variants?.[variant] || variants?.[0];
+  if (v) {
+    const p2d = new Path2D(v.path);
+    ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.stroke(p2d);
+  }
+  ctx.restore();
+};
+
 /* Refined light palette */
 const T = {
   bg: "#f5f6f8", sidebar: "#ffffff", toolbar: "#ffffff", card: "#f0f2f5",
@@ -122,7 +188,7 @@ export default function NetPlanner() {
     if (tool.startsWith("place:")) {
       const type = tool.split(":")[1]; const eq = EQUIPMENT.find(eq => eq.type === type); if (!eq) return;
       saveSnapshot(); const num = nextNumbers[type]; setNextNumbers(prev => ({ ...prev, [type]: prev[type] + 1 }));
-      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: eq.angle, radius: eq.coverageRadius, visible: true, notes: "", customColor: null, size: "medium" };
+      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: eq.angle, radius: eq.coverageRadius, visible: true, notes: "", customColor: null, size: "medium", iconVariant: 0 };
       setElements(prev => [...prev, el]); setSelectedId(el.id); return;
     }
     if (tool === "measure") { if (!measurePoints.length) setMeasurePoints([{ x, y }]); else { const p1 = measurePoints[0]; saveSnapshot(); setMeasureLines(prev => [...prev, { p1, p2: { x, y }, dist: Math.hypot(x - p1.x, y - p1.y) }]); setMeasurePoints([]); } return; }
@@ -157,7 +223,7 @@ export default function NetPlanner() {
     const draw = () => {
       pg.connections.forEach(cn => { const f = pg.elements.find(e => e.id === cn.from), t = pg.elements.find(e => e.id === cn.to); if (!f || !t) return; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(t.x, t.y); ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); });
       pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq || el.radius <= 0 || el.angle <= 0) return; const col = el.customColor || eq.color; ctx.save(); ctx.translate(el.x, el.y); ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180); ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180); ctx.closePath(); ctx.fillStyle = col + "25"; ctx.strokeStyle = col + "70"; ctx.lineWidth = 1.2; ctx.fill(); ctx.stroke(); ctx.restore(); });
-      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; ctx.beginPath(); ctx.arc(el.x, el.y, 10, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + 14, el.y + 4); ctx.fillText(el.label, el.x + 14, el.y + 4); });
+      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const r = 12; ctx.beginPath(); ctx.arc(el.x, el.y, r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); drawEquipIconCanvas(ctx, el.type, el.iconVariant || 0, el.x, el.y, 16, "#fff"); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + r + 4, el.y + 4); ctx.fillText(el.label, el.x + r + 4, el.y + 4); });
       pg.measureLines.forEach(ml => { ctx.beginPath(); ctx.moveTo(ml.p1.x, ml.p1.y); ctx.lineTo(ml.p2.x, ml.p2.y); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.8; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]); const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#92400e"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); ctx.fillText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); });
       resolve(c);
     };
@@ -394,9 +460,9 @@ export default function NetPlanner() {
           {sidebarTab === "equip" && (<>
             <div style={secT}>Equipamentos</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
-              {EQUIPMENT.map(eq => { const Icon = eq.icon; const isA = tool === `place:${eq.type}`; return (
+              {EQUIPMENT.map(eq => { const isA = tool === `place:${eq.type}`; return (
                 <button key={eq.type} onClick={() => setTool(isA ? "select" : `place:${eq.type}`)} style={{ display: "flex", alignItems: "center", gap: "9px", padding: "8px 10px", borderRadius: "8px", border: isA ? `1.5px solid ${eq.color}` : `1px solid ${T.borderLight}`, cursor: "pointer", textAlign: "left", background: isA ? eq.color + "0c" : T.white, color: T.text, boxShadow: isA ? `0 0 0 3px ${eq.color}15` : T.shadow, transition: "all .15s" }}>
-                  <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: eq.color + "12", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={14} color={eq.color} /></div>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: eq.color + "12", display: "flex", alignItems: "center", justifyContent: "center" }}><EquipIcon type={eq.type} variant={0} size={16} color={eq.color} /></div>
                   <div style={{ flex: 1 }}><div style={{ fontSize: "12px", fontWeight: 600 }}>{eq.label}</div><div style={{ fontSize: "9px", color: T.textDim }}>{counts[eq.type] || 0} un.</div></div>
                   <Plus size={12} color={T.textDim} />
                 </button>
@@ -413,9 +479,9 @@ export default function NetPlanner() {
             </div>
 
             <div style={secT}>Resumo</div>
-            {EQUIPMENT.map(eq => { const c = counts[eq.type] || 0; if (!c) return null; const Icon = eq.icon; return (
+            {EQUIPMENT.map(eq => { const c = counts[eq.type] || 0; if (!c) return null; return (
               <div key={eq.type} style={{ display: "flex", alignItems: "center", gap: "7px", background: T.white, borderRadius: "7px", padding: "6px 9px", marginBottom: "3px", boxShadow: T.shadow }}>
-                <Icon size={12} color={eq.color} /><span style={{ flex: 1, fontSize: "11px", color: T.textMuted }}>{eq.label}</span><span style={{ fontSize: "13px", fontWeight: 800, color: eq.color }}>{c}</span>
+                <EquipIcon type={eq.type} variant={0} size={14} color={eq.color} /><span style={{ flex: 1, fontSize: "11px", color: T.textMuted }}>{eq.label}</span><span style={{ fontSize: "13px", fontWeight: 800, color: eq.color }}>{c}</span>
               </div>
             ); })}
             {totalEquip > 0 && <div style={{ background: T.accentLight, borderRadius: "7px", padding: "7px", textAlign: "center", marginTop: "4px", border: `1px solid ${T.accent}20` }}><span style={{ fontSize: "15px", fontWeight: 800, color: T.accent }}>{totalEquip}</span><span style={{ fontSize: "9px", color: T.textMuted, marginLeft: "5px" }}>total</span></div>}
@@ -438,7 +504,7 @@ export default function NetPlanner() {
             ))}
 
             {elements.length > 0 && (<><div style={{ ...secT, marginTop: "14px" }}>Legenda</div>
-              {EQUIPMENT.map(eq => { const its = elements.filter(e => e.type === eq.type); if (!its.length) return null; const Icon = eq.icon; return (<div key={eq.type}><div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 5px", fontSize: "10px", fontWeight: 700, color: eq.color }}><Icon size={10} /> {eq.label} ({its.length})</div>{its.map(it => <button key={it.id} onClick={() => { setSelectedId(it.id); setSidebarTab("equip"); }} style={{ display: "block", width: "100%", padding: "3px 5px 3px 18px", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px", textAlign: "left", background: selectedId === it.id ? T.accentLight : "transparent", color: selectedId === it.id ? T.accent : T.textMuted }}>{it.label}</button>)}</div>); })}
+              {EQUIPMENT.map(eq => { const its = elements.filter(e => e.type === eq.type); if (!its.length) return null; return (<div key={eq.type}><div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 5px", fontSize: "10px", fontWeight: 700, color: eq.color }}><EquipIcon type={eq.type} variant={0} size={12} color={eq.color} /> {eq.label} ({its.length})</div>{its.map(it => <button key={it.id} onClick={() => { setSelectedId(it.id); setSidebarTab("equip"); }} style={{ display: "block", width: "100%", padding: "3px 5px 3px 18px", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px", textAlign: "left", background: selectedId === it.id ? T.accentLight : "transparent", color: selectedId === it.id ? T.accent : T.textMuted }}>{it.label}</button>)}</div>); })}
             </>)}
             {measureLines.length > 0 && (<><div style={{ ...secT, marginTop: "14px" }}>Medições</div>
               {measureLines.map((ml, i) => (<div key={i} onClick={() => { setSelectedMeasure(i); setSelectedId(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 7px", background: selectedMeasure === i ? "#fef3c7" : T.white, border: `1px solid ${selectedMeasure === i ? "#fbbf24" : T.borderLight}`, borderRadius: "5px", marginBottom: "3px", cursor: "pointer", boxShadow: T.shadow }}><span style={{ fontSize: "10px", color: "#92400e" }}>#{i + 1}: {(ml.dist * scale).toFixed(2)}m</span><button onClick={(e) => { e.stopPropagation(); saveSnapshot(); setMeasureLines(prev => prev.filter((_, j) => j !== i)); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim }}><X size={10} /></button></div>))}
@@ -532,10 +598,12 @@ export default function NetPlanner() {
                   {calibratePoints.length === 1 && <circle cx={calibratePoints[0].x} cy={calibratePoints[0].y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} />}
                   {calibrateDialog && <><line x1={calibrateDialog.p1.x} y1={calibrateDialog.p1.y} x2={calibrateDialog.p2.x} y2={calibrateDialog.p2.y} stroke="#ea580c" strokeWidth={2.5 / zoom} strokeDasharray={`${7 / zoom} ${4 / zoom}`} /><circle cx={calibrateDialog.p1.x} cy={calibrateDialog.p1.y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} /><circle cx={calibrateDialog.p2.x} cy={calibrateDialog.p2.y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} /></>}
                 </svg>
-                {visibleElements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return null; const Icon = eq.icon; const isSel = selectedId === el.id; const isCbl = cableStart === el.id; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; return (
+                {visibleElements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return null; const isSel = selectedId === el.id; const isCbl = cableStart === el.id; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; return (
                   <div key={el.id} onMouseDown={(e) => startDrag(e, el.id)} onClick={(e) => { e.stopPropagation(); if (tool === "cable") handleCanvasClick(e); else { setSelectedId(el.id); setSelectedMeasure(null); } }} style={{ position: "absolute", left: el.x - sz / 2, top: el.y - sz / 2, width: sz, height: sz, cursor: tool === "cable" ? "cell" : "pointer", zIndex: isSel ? 100 : 10 }}>
                     {(isSel || isCbl) && <div style={{ position: "absolute", inset: -5, borderRadius: "50%", border: `2px solid ${isCbl ? T.success : col}`, opacity: .5, animation: "pulse 1.5s infinite" }} />}
-                    <div style={{ width: sz, height: sz, borderRadius: "50%", background: col, border: `2.5px solid #fff`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${col}40, 0 0 0 ${isSel ? "3px" : "0"} ${col}30` }}><Icon size={sz * .42} color="#fff" strokeWidth={2.5} /></div>
+                    <div style={{ width: sz, height: sz, borderRadius: "50%", background: col, border: `2.5px solid #fff`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${col}40, 0 0 0 ${isSel ? "3px" : "0"} ${col}30` }}>
+                      <EquipIcon type={el.type} variant={el.iconVariant || 0} size={sz * .52} color="#fff" />
+                    </div>
                     <div style={{ position: "absolute", left: "50%", top: sz + 4 + "px", transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: Math.max(9, 10 / Math.sqrt(zoom)), fontWeight: 700, color: T.text, textShadow: "0 0 4px #fff, 0 0 8px #fff, 0 1px 2px rgba(0,0,0,.15)", pointerEvents: "none" }}>{el.label}</div>
                   </div>); })}
               </div>
@@ -544,7 +612,7 @@ export default function NetPlanner() {
         </div>
 
         <div style={{ background: T.toolbar, borderTop: `1px solid ${T.borderLight}`, padding: "3px 14px", display: "flex", alignItems: "center", gap: "10px", fontSize: "10px", color: T.textDim }}>
-          {EQUIPMENT.map(eq => { const c = counts[eq.type] || 0; if (!c) return null; const I = eq.icon; return <span key={eq.type} style={{ display: "flex", alignItems: "center", gap: "2px" }}><I size={10} color={eq.color} /> {c}</span>; })}
+          {EQUIPMENT.map(eq => { const c = counts[eq.type] || 0; if (!c) return null; return <span key={eq.type} style={{ display: "flex", alignItems: "center", gap: "2px" }}><EquipIcon type={eq.type} variant={0} size={11} color={eq.color} /> {c}</span>; })}
           <span style={{ fontWeight: 600, color: T.text }}>{totalEquip}</span>
           <span>· {connections.length} cabos · {measureLines.length} med.</span>
           <div style={{ flex: 1 }} />
@@ -557,7 +625,7 @@ export default function NetPlanner() {
       {sel && selEq && (
         <div style={{ width: "258px", minWidth: "258px", background: T.sidebar, borderLeft: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "auto", boxShadow: "-2px 0 8px rgba(0,0,0,0.03)" }}>
           <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.borderLight}`, display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: (sel.customColor || selEq.color) + "12", display: "flex", alignItems: "center", justifyContent: "center" }}>{(() => { const I = selEq.icon; return <I size={15} color={sel.customColor || selEq.color} />; })()}</div>
+            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: (sel.customColor || selEq.color) + "12", display: "flex", alignItems: "center", justifyContent: "center" }}><EquipIcon type={sel.type} variant={sel.iconVariant || 0} size={18} color={sel.customColor || selEq.color} /></div>
             <div style={{ flex: 1 }}><div style={{ fontSize: "12px", fontWeight: 700 }}>{sel.label}</div><div style={{ fontSize: "9px", color: T.textDim }}>{selEq.label} #{sel.number}</div></div>
             <button onClick={() => setSelectedId(null)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim }}><X size={14} /></button>
           </div>
@@ -569,6 +637,15 @@ export default function NetPlanner() {
             <div><label style={lblS}>Alcance (px)</label><div style={{ display: "flex", gap: "6px", alignItems: "center" }}><input type="number" value={sel.radius} onChange={e => updateEl(sel.id, { radius: Math.max(0, +e.target.value || 0) })} style={{ ...inpS, flex: 1 }} /><input type="range" value={sel.radius} onChange={e => updateEl(sel.id, { radius: +e.target.value })} min={0} max={300} style={{ flex: 2, accentColor: sel.customColor || selEq.color }} /></div>{sel.radius > 0 && <div style={{ fontSize: "9px", color: T.textDim, marginTop: "2px" }}>≈ {(sel.radius * scale).toFixed(1)}m</div>}</div>
             <div><label style={lblS}>Cor</label><div style={{ display: "flex", gap: "5px", alignItems: "center" }}><input type="color" value={sel.customColor || selEq.color} onChange={e => updateEl(sel.id, { customColor: e.target.value })} style={{ width: "30px", height: "28px", border: `1px solid ${T.border}`, borderRadius: "5px", cursor: "pointer", padding: "2px" }} /><span style={{ fontSize: "10px", color: T.textDim, flex: 1 }}>{sel.customColor || "Padrão"}</span>{sel.customColor && <button onClick={() => updateEl(sel.id, { customColor: null })} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, fontSize: "10px" }}>Reset</button>}</div></div>
             <div><label style={lblS}>Tamanho</label><div style={{ display: "flex", gap: "3px" }}>{["small", "medium", "large"].map(s => <button key={s} onClick={() => updateEl(sel.id, { size: s })} style={{ flex: 1, padding: "4px", borderRadius: "5px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: (sel.size || "medium") === s ? T.accentLight : T.white, color: (sel.size || "medium") === s ? T.accent : T.textDim }}>{s === "small" ? "P" : s === "medium" ? "M" : "G"}</button>)}</div></div>
+            <div><label style={lblS}>Modelo do Ícone</label><div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              {(ICON_VARIANTS[sel.type] || []).map((v, i) => (
+                <button key={i} onClick={() => updateEl(sel.id, { iconVariant: i })} title={v.name}
+                  style={{ width: "40px", height: "40px", borderRadius: "8px", border: (sel.iconVariant || 0) === i ? `2px solid ${sel.customColor || selEq.color}` : `1px solid ${T.borderLight}`, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1px", background: (sel.iconVariant || 0) === i ? (sel.customColor || selEq.color) + "10" : T.white, boxShadow: (sel.iconVariant || 0) === i ? `0 0 0 3px ${(sel.customColor || selEq.color)}15` : T.shadow, transition: "all .15s" }}>
+                  <EquipIcon type={sel.type} variant={i} size={20} color={(sel.iconVariant || 0) === i ? (sel.customColor || selEq.color) : T.textMuted} />
+                  <span style={{ fontSize: "6px", color: T.textDim, lineHeight: 1 }}>{v.name}</span>
+                </button>
+              ))}
+            </div></div>
             <div><label style={lblS}>Observações</label><textarea value={sel.notes || ""} onChange={e => updateEl(sel.id, { notes: e.target.value })} placeholder="Modelo, specs..." rows={2} style={{ ...inpS, resize: "vertical", fontFamily: "inherit" }} /></div>
             <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
               <button onClick={() => duplicateEl(sel.id)} style={{ flex: 1, padding: "7px", borderRadius: "6px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: T.white, color: T.text, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px", boxShadow: T.shadow }}><Copy size={11} /> Duplicar</button>
