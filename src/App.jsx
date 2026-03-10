@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { jsPDF } from "jspdf";
 import {
   Camera, Wifi, Network, Router, HardDrive, Upload, Download, ZoomIn, ZoomOut,
   Undo2, Redo2, Trash2, Copy, Clipboard, Ruler, Move, MousePointer, Plus, Minus,
-  List, X, GripVertical, RotateCw, Eye, EyeOff, FileImage, ChevronDown, ChevronRight,
+  List, X, GripVertical, RotateCw, Eye, EyeOff, FileImage, FileText, ChevronDown, ChevronRight,
   Maximize2, Save, FolderOpen, Share2, Grid3X3, Info, Settings, Layers
 } from "lucide-react";
 
@@ -24,7 +25,7 @@ export default function EditorPlantas() {
   const [bgNatural, setBgNatural] = useState({ w: 0, h: 0 });
   const [elements, setElements] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [tool, setTool] = useState("select"); // select | place:type | measure | pan
+  const [tool, setTool] = useState("select"); // select | place:type | measure | pan | calibrate
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [undoStack, setUndoStack] = useState([]);
@@ -33,6 +34,10 @@ export default function EditorPlantas() {
   const [showCoverage, setShowCoverage] = useState(true);
   const [measurePoints, setMeasurePoints] = useState([]);
   const [measureLines, setMeasureLines] = useState([]);
+  const [selectedMeasure, setSelectedMeasure] = useState(null);
+  const [calibratePoints, setCalibratePoints] = useState([]);
+  const [calibrateDialog, setCalibrateDialog] = useState(null); // { pixelDist }
+  const [calibrateMeters, setCalibrateMeters] = useState("");
   const [scale, setScale] = useState(0.05); // meters per pixel
   const [dragging, setDragging] = useState(null);
   const [panning, setPanning] = useState(false);
@@ -49,24 +54,30 @@ export default function EditorPlantas() {
 
   /* helpers */
   const saveSnapshot = useCallback(() => {
-    setUndoStack(prev => [...prev.slice(-30), JSON.stringify(elements)]);
+    setUndoStack(prev => [...prev.slice(-30), JSON.stringify({ elements, measureLines })]);
     setRedoStack([]);
-  }, [elements]);
+  }, [elements, measureLines]);
 
   const undo = () => {
     if (!undoStack.length) return;
-    setRedoStack(prev => [...prev, JSON.stringify(elements)]);
-    setElements(JSON.parse(undoStack[undoStack.length - 1]));
+    setRedoStack(prev => [...prev, JSON.stringify({ elements, measureLines })]);
+    const snap = JSON.parse(undoStack[undoStack.length - 1]);
+    setElements(snap.elements || snap);
+    setMeasureLines(snap.measureLines || []);
     setUndoStack(prev => prev.slice(0, -1));
     setSelectedId(null);
+    setSelectedMeasure(null);
   };
 
   const redo = () => {
     if (!redoStack.length) return;
-    setUndoStack(prev => [...prev, JSON.stringify(elements)]);
-    setElements(JSON.parse(redoStack[redoStack.length - 1]));
+    setUndoStack(prev => [...prev, JSON.stringify({ elements, measureLines })]);
+    const snap = JSON.parse(redoStack[redoStack.length - 1]);
+    setElements(snap.elements || snap);
+    setMeasureLines(snap.measureLines || []);
     setRedoStack(prev => prev.slice(0, -1));
     setSelectedId(null);
+    setSelectedMeasure(null);
   };
 
   const cameraCount = elements.filter(e => e.type === "camera").length;
@@ -139,14 +150,45 @@ export default function EditorPlantas() {
       } else {
         const p1 = measurePoints[0];
         const dist = Math.sqrt((x - p1.x) ** 2 + (y - p1.y) ** 2);
+        saveSnapshot();
         setMeasureLines(prev => [...prev, { p1, p2: { x, y }, dist }]);
         setMeasurePoints([]);
       }
       return;
     }
 
+    if (tool === "calibrate") {
+      if (calibratePoints.length === 0) {
+        setCalibratePoints([{ x, y }]);
+      } else {
+        const p1 = calibratePoints[0];
+        const pixelDist = Math.sqrt((x - p1.x) ** 2 + (y - p1.y) ** 2);
+        setCalibrateDialog({ pixelDist, p1, p2: { x, y } });
+        setCalibrateMeters("");
+        setCalibratePoints([]);
+      }
+      return;
+    }
+
+    // select tool - check if clicking near a measurement line
+    if (tool === "select") {
+      let clickedMeasure = null;
+      measureLines.forEach((ml, i) => {
+        const mx = (ml.p1.x + ml.p2.x) / 2;
+        const my = (ml.p1.y + ml.p2.y) / 2;
+        const d = Math.sqrt((x - mx) ** 2 + (y - my) ** 2);
+        if (d < 20 / zoom) clickedMeasure = i;
+      });
+      if (clickedMeasure !== null) {
+        setSelectedMeasure(clickedMeasure);
+        setSelectedId(null);
+        return;
+      }
+    }
+
     // select tool - deselect
     setSelectedId(null);
+    setSelectedMeasure(null);
   };
 
   /* element drag */
@@ -213,18 +255,24 @@ export default function EditorPlantas() {
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-      if (e.key === "Delete" && selectedId) {
-        saveSnapshot();
-        setElements(prev => prev.filter(el => el.id !== selectedId));
-        setSelectedId(null);
+      if (e.key === "Delete") {
+        if (selectedMeasure !== null) {
+          saveSnapshot();
+          setMeasureLines(prev => prev.filter((_, i) => i !== selectedMeasure));
+          setSelectedMeasure(null);
+        } else if (selectedId) {
+          saveSnapshot();
+          setElements(prev => prev.filter(el => el.id !== selectedId));
+          setSelectedId(null);
+        }
       }
       if (e.ctrlKey && e.key === "z") { e.preventDefault(); undo(); }
       if (e.ctrlKey && e.key === "y") { e.preventDefault(); redo(); }
-      if (e.key === "Escape") { setTool("select"); setMeasurePoints([]); setSelectedId(null); }
+      if (e.key === "Escape") { setTool("select"); setMeasurePoints([]); setCalibratePoints([]); setCalibrateDialog(null); setSelectedId(null); setSelectedMeasure(null); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedId, undoStack, redoStack, elements]);
+  }, [selectedId, selectedMeasure, undoStack, redoStack, elements, measureLines]);
 
   /* prevent wheel default on container */
   useEffect(() => {
@@ -331,7 +379,188 @@ export default function EditorPlantas() {
     img.src = bgImage;
   };
 
-  /* save/load project */
+  /* export PDF - auto-fit to page */
+  const exportPDF = () => {
+    // First render everything to a canvas (same as PNG)
+    const canvas = document.createElement("canvas");
+    canvas.width = bgNatural.w;
+    canvas.height = bgNatural.h;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      elements.forEach(el => {
+        const eq = EQUIPMENT.find(e => e.type === el.type);
+        if (!eq) return;
+        if (el.radius > 0 && el.angle > 0 && showCoverage) {
+          ctx.save();
+          ctx.translate(el.x, el.y);
+          ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180);
+          ctx.closePath();
+          ctx.fillStyle = eq.color + "30";
+          ctx.strokeStyle = eq.color + "80";
+          ctx.lineWidth = 1.5;
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.beginPath();
+        ctx.arc(el.x, el.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = eq.color;
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 3;
+        ctx.strokeText(el.label, el.x + 12, el.y + 4);
+        ctx.fillText(el.label, el.x + 12, el.y + 4);
+      });
+      measureLines.forEach(ml => {
+        ctx.beginPath();
+        ctx.moveTo(ml.p1.x, ml.p1.y);
+        ctx.lineTo(ml.p2.x, ml.p2.y);
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const mx = (ml.p1.x + ml.p2.x) / 2;
+        const my = (ml.p1.y + ml.p2.y) / 2;
+        const meters = (ml.dist * scale).toFixed(1);
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillStyle = "#fbbf24";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 3;
+        ctx.strokeText(`${meters}m`, mx + 4, my - 6);
+        ctx.fillText(`${meters}m`, mx + 4, my - 6);
+      });
+
+      // Determine orientation and page size
+      const isLandscape = bgNatural.w > bgNatural.h;
+      const orientation = isLandscape ? "landscape" : "portrait";
+
+      // A4 dimensions in mm
+      const pageW = isLandscape ? 297 : 210;
+      const pageH = isLandscape ? 210 : 297;
+
+      const margin = 10; // mm
+      const headerH = 18; // mm for title area
+      const legendH = elements.length > 0 ? Math.min(50, 12 + elements.length * 5) : 0; // mm for legend
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2 - headerH - legendH;
+
+      // Scale image to fit available area
+      const scaleX = availW / bgNatural.w;
+      const scaleY = availH / bgNatural.h;
+      const fitScale = Math.min(scaleX, scaleY);
+      const imgW = bgNatural.w * fitScale;
+      const imgH = bgNatural.h * fitScale;
+      const imgX = margin + (availW - imgW) / 2;
+      const imgY = margin + headerH;
+
+      const pdf = new jsPDF({ orientation, unit: "mm", format: "a4" });
+
+      // Header
+      pdf.setFillColor(15, 22, 41); // dark header
+      pdf.rect(0, 0, pageW, margin + headerH, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(projectName, margin, margin + 7);
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      const dateStr = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      pdf.text(`Gerado em ${dateStr}`, margin, margin + 13);
+      pdf.text(`${cameraCount} câmera${cameraCount !== 1 ? "s" : ""} | ${totalEquip} equipamentos | ${measureLines.length} medição${measureLines.length !== 1 ? "ões" : ""}`, pageW - margin, margin + 7, { align: "right" });
+
+      // Plant image with border
+      pdf.setDrawColor(30, 41, 59);
+      pdf.setLineWidth(0.3);
+      pdf.rect(imgX - 0.5, imgY - 0.5, imgW + 1, imgH + 1, "S");
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, "PNG", imgX, imgY, imgW, imgH);
+
+      // Legend table
+      if (elements.length > 0) {
+        const legendY = imgY + imgH + 6;
+        pdf.setFillColor(15, 22, 41);
+        pdf.rect(margin, legendY - 1, availW, legendH, "F");
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text("LEGENDA DE EQUIPAMENTOS", margin + 3, legendY + 4);
+
+        // Table header
+        const tableY = legendY + 8;
+        pdf.setFillColor(30, 41, 59);
+        pdf.rect(margin + 2, tableY - 3, availW - 4, 6, "F");
+        pdf.setFontSize(7);
+        pdf.setTextColor(148, 163, 184);
+        const cols = [margin + 4, margin + 28, margin + 70, margin + 100, margin + 135];
+        pdf.text("ID", cols[0], tableY);
+        pdf.text("TIPO", cols[1], tableY);
+        pdf.text("POSIÇÃO", cols[2], tableY);
+        pdf.text("COBERTURA", cols[3], tableY);
+        pdf.text("OBSERVAÇÕES", cols[4], tableY);
+
+        // Table rows
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7);
+        let rowY = tableY + 6;
+        elements.forEach((el, i) => {
+          const eq = EQUIPMENT.find(e => e.type === el.type);
+          if (!eq) return;
+          if (rowY > pageH - margin - 4) {
+            // new page if legend overflows
+            pdf.addPage();
+            rowY = margin + 6;
+          }
+          // alternating row background
+          if (i % 2 === 0) {
+            pdf.setFillColor(20, 30, 50);
+            pdf.rect(margin + 2, rowY - 3, availW - 4, 5, "F");
+          }
+          // color dot
+          const rgb = hexToRgb(eq.color);
+          pdf.setFillColor(rgb.r, rgb.g, rgb.b);
+          pdf.circle(cols[0] + 1.5, rowY - 0.8, 1.2, "F");
+          pdf.setTextColor(226, 232, 240);
+          pdf.text(el.label, cols[0] + 5, rowY);
+          pdf.setTextColor(148, 163, 184);
+          pdf.text(eq.label, cols[1], rowY);
+          pdf.text(`(${Math.round(el.x)}, ${Math.round(el.y)})`, cols[2], rowY);
+          if (el.radius > 0) {
+            pdf.text(`${(el.radius * scale).toFixed(1)}m / ${el.angle}°`, cols[3], rowY);
+          } else {
+            pdf.text("—", cols[3], rowY);
+          }
+          pdf.text(el.notes || "—", cols[4], rowY);
+          rowY += 5;
+        });
+      }
+
+      // Footer
+      pdf.setFontSize(6);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text("NetPlanner v2.0 — Editor de Plantas", margin, pageH - 4);
+      pdf.text(`Escala: 1px = ${scale}m`, pageW - margin, pageH - 4, { align: "right" });
+
+      pdf.save(`${projectName}.pdf`);
+    };
+    img.src = bgImage;
+  };
+
+  /* helper: hex to rgb */
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+  };
   const saveProject = () => {
     const data = { name: projectName, bgImage, bgNatural, elements, measureLines, scale, nextNumbers, zoom, pan, timestamp: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -478,12 +707,27 @@ export default function EditorPlantas() {
                 })}
               </div>
 
-              {/* scale */}
+              {/* scale / calibration */}
               <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: DARK.textDim, marginBottom: "8px", fontWeight: 700 }}>
                 Escala do projeto
               </div>
               <div style={{ background: DARK.card, borderRadius: "8px", padding: "12px", marginBottom: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => { setTool("calibrate"); setCalibratePoints([]); }}
+                  style={{
+                    width: "100%", padding: "8px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 600,
+                    border: tool === "calibrate" ? `1px solid #fbbf24` : `1px solid ${DARK.border}`,
+                    background: tool === "calibrate" ? "#fbbf2418" : DARK.bg,
+                    color: tool === "calibrate" ? "#fbbf24" : DARK.text,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                  }}
+                >
+                  <Ruler size={14} /> Calibrar escala
+                </button>
+                <div style={{ fontSize: "10px", color: DARK.textDim, marginTop: "8px", lineHeight: "1.4" }}>
+                  Trace uma linha sobre uma medida conhecida na planta e informe o valor real em metros.
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
                   <Ruler size={14} color={DARK.textDim} />
                   <span style={{ fontSize: "12px", color: DARK.textMuted }}>1 pixel =</span>
                   <input
@@ -502,15 +746,26 @@ export default function EditorPlantas() {
               <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: DARK.textDim, marginBottom: "8px", fontWeight: 700 }}>
                 Resumo
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                <div style={{ background: DARK.card, borderRadius: "8px", padding: "12px", textAlign: "center" }}>
-                  <div style={{ fontSize: "22px", fontWeight: 800, color: "#ef4444" }}>{cameraCount}</div>
-                  <div style={{ fontSize: "10px", color: DARK.textDim }}>Câmeras</div>
-                </div>
-                <div style={{ background: DARK.card, borderRadius: "8px", padding: "12px", textAlign: "center" }}>
-                  <div style={{ fontSize: "22px", fontWeight: 800, color: DARK.accent }}>{totalEquip}</div>
-                  <div style={{ fontSize: "10px", color: DARK.textDim }}>Total Equip.</div>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "4px" }}>
+                {EQUIPMENT.map(eq => {
+                  const count = counts[eq.type] || 0;
+                  if (count === 0) return null;
+                  const Icon = eq.icon;
+                  return (
+                    <div key={eq.type} style={{ display: "flex", alignItems: "center", gap: "8px", background: DARK.card, borderRadius: "6px", padding: "8px 10px" }}>
+                      <Icon size={14} color={eq.color} />
+                      <span style={{ flex: 1, fontSize: "12px", color: DARK.textMuted }}>{eq.label}</span>
+                      <span style={{ fontSize: "14px", fontWeight: 800, color: eq.color }}>{count}</span>
+                    </div>
+                  );
+                })}
+                {totalEquip === 0 && (
+                  <div style={{ color: DARK.textDim, fontSize: "11px", textAlign: "center", padding: "8px" }}>Nenhum equipamento</div>
+                )}
+              </div>
+              <div style={{ background: `linear-gradient(135deg, ${DARK.accent}20, #8b5cf620)`, borderRadius: "8px", padding: "10px", textAlign: "center", border: `1px solid ${DARK.accent}30` }}>
+                <div style={{ fontSize: "20px", fontWeight: 800, color: DARK.accent }}>{totalEquip}</div>
+                <div style={{ fontSize: "10px", color: DARK.textDim }}>Total de equipamentos</div>
               </div>
             </>
           )}
@@ -564,12 +819,21 @@ export default function EditorPlantas() {
                     Medições
                   </div>
                   {measureLines.map((ml, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: DARK.card, borderRadius: "6px", marginBottom: "4px" }}>
+                    <div
+                      key={i}
+                      onClick={() => { setSelectedMeasure(i); setSelectedId(null); }}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px",
+                        background: selectedMeasure === i ? "#fbbf2420" : DARK.card,
+                        border: selectedMeasure === i ? "1px solid #fbbf2440" : "1px solid transparent",
+                        borderRadius: "6px", marginBottom: "4px", cursor: "pointer",
+                      }}
+                    >
                       <span style={{ fontSize: "11px", color: "#fbbf24" }}>
                         <Ruler size={10} /> Medição {i + 1}: {(ml.dist * scale).toFixed(2)}m
                       </span>
                       <button
-                        onClick={() => setMeasureLines(prev => prev.filter((_, j) => j !== i))}
+                        onClick={(e) => { e.stopPropagation(); saveSnapshot(); setMeasureLines(prev => prev.filter((_, j) => j !== i)); if (selectedMeasure === i) setSelectedMeasure(null); }}
                         style={{ background: "none", border: "none", cursor: "pointer", color: DARK.textDim, padding: "2px" }}
                       >
                         <X size={12} />
@@ -616,7 +880,8 @@ export default function EditorPlantas() {
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
           <button onClick={saveProject} style={btnStyle()} title="Salvar projeto"><Save size={15} /></button>
           <button onClick={loadProject} style={btnStyle()} title="Abrir projeto"><FolderOpen size={15} /></button>
-          <button onClick={exportPNG} style={btnStyle()} title="Exportar PNG" disabled={!bgImage}><Download size={15} /></button>
+          <button onClick={exportPNG} style={btnStyle()} title="Exportar PNG" disabled={!bgImage}><Download size={15} /> <span>PNG</span></button>
+          <button onClick={exportPDF} style={btnStyle()} title="Exportar PDF" disabled={!bgImage}><FileText size={15} /> <span>PDF</span></button>
 
           <div style={{ width: "1px", height: "24px", background: DARK.border, margin: "0 4px" }} />
 
@@ -657,6 +922,7 @@ export default function EditorPlantas() {
           <div style={{ background: tool === "measure" ? "#fbbf24" + "15" : DARK.accent + "15", padding: "6px 16px", fontSize: "12px", color: tool === "measure" ? "#fbbf24" : DARK.accent, display: "flex", alignItems: "center", gap: "8px", borderBottom: `1px solid ${DARK.border}` }}>
             {tool.startsWith("place:") && <><Plus size={13} /> Clique na planta para posicionar o equipamento. Pressione Esc para cancelar.</>}
             {tool === "measure" && <><Ruler size={13} /> {measurePoints.length === 0 ? "Clique no ponto inicial." : "Clique no ponto final para medir."} Pressione Esc para cancelar.</>}
+            {tool === "calibrate" && <><Ruler size={13} /> {calibratePoints.length === 0 ? "Clique no ponto inicial de uma medida conhecida na planta." : "Clique no ponto final."} Pressione Esc para cancelar.</>}
             {tool === "pan" && <><Move size={13} /> Clique e arraste para mover a planta.</>}
           </div>
         )}
@@ -664,7 +930,7 @@ export default function EditorPlantas() {
         {/* ── CANVAS ── */}
         <div
           ref={containerRef}
-          style={{ flex: 1, overflow: "hidden", position: "relative", background: DARK.canvas, cursor: tool === "pan" ? "grab" : tool === "measure" ? "crosshair" : tool.startsWith("place:") ? "copy" : "default" }}
+          style={{ flex: 1, overflow: "hidden", position: "relative", background: DARK.canvas, cursor: tool === "pan" ? "grab" : tool === "measure" || tool === "calibrate" ? "crosshair" : tool.startsWith("place:") ? "copy" : "default" }}
           onMouseDown={startPan}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
@@ -732,15 +998,23 @@ export default function EditorPlantas() {
                   {measureLines.map((ml, i) => {
                     const mx = (ml.p1.x + ml.p2.x) / 2;
                     const my = (ml.p1.y + ml.p2.y) / 2;
+                    const isSel = selectedMeasure === i;
                     return (
-                      <g key={`ml-${i}`}>
-                        <line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke="#fbbf24" strokeWidth={2 / zoom} strokeDasharray={`${6 / zoom} ${4 / zoom}`} />
-                        <circle cx={ml.p1.x} cy={ml.p1.y} r={4 / zoom} fill="#fbbf24" />
-                        <circle cx={ml.p2.x} cy={ml.p2.y} r={4 / zoom} fill="#fbbf24" />
-                        <rect x={mx - 24 / zoom} y={my - 16 / zoom} width={48 / zoom} height={18 / zoom} rx={4 / zoom} fill="#000" opacity="0.7" />
-                        <text x={mx} y={my - 4 / zoom} textAnchor="middle" fill="#fbbf24" fontSize={11 / zoom} fontWeight="bold">
+                      <g key={`ml-${i}`} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setSelectedMeasure(i); setSelectedId(null); }}>
+                        {/* wider invisible hitbox for easier clicking */}
+                        <line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke="transparent" strokeWidth={12 / zoom} />
+                        <line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke={isSel ? "#fff" : "#fbbf24"} strokeWidth={(isSel ? 3 : 2) / zoom} strokeDasharray={`${6 / zoom} ${4 / zoom}`} />
+                        <circle cx={ml.p1.x} cy={ml.p1.y} r={(isSel ? 5 : 4) / zoom} fill={isSel ? "#fff" : "#fbbf24"} />
+                        <circle cx={ml.p2.x} cy={ml.p2.y} r={(isSel ? 5 : 4) / zoom} fill={isSel ? "#fff" : "#fbbf24"} />
+                        <rect x={mx - 24 / zoom} y={my - 16 / zoom} width={48 / zoom} height={18 / zoom} rx={4 / zoom} fill={isSel ? "#fbbf24" : "#000"} opacity={isSel ? 0.9 : 0.7} />
+                        <text x={mx} y={my - 4 / zoom} textAnchor="middle" fill={isSel ? "#000" : "#fbbf24"} fontSize={11 / zoom} fontWeight="bold">
                           {(ml.dist * scale).toFixed(1)}m
                         </text>
+                        {isSel && (
+                          <text x={mx} y={my + 10 / zoom} textAnchor="middle" fill="#ef4444" fontSize={9 / zoom} fontWeight="bold">
+                            Delete para remover
+                          </text>
+                        )}
                       </g>
                     );
                   })}
@@ -748,6 +1022,18 @@ export default function EditorPlantas() {
                   {/* measurement in-progress */}
                   {measurePoints.length === 1 && (
                     <circle cx={measurePoints[0].x} cy={measurePoints[0].y} r={5 / zoom} fill="#fbbf24" stroke="#000" strokeWidth={1.5 / zoom} />
+                  )}
+
+                  {/* calibration in-progress */}
+                  {calibratePoints.length === 1 && (
+                    <circle cx={calibratePoints[0].x} cy={calibratePoints[0].y} r={6 / zoom} fill="#f97316" stroke="#fff" strokeWidth={2 / zoom} />
+                  )}
+                  {calibrateDialog && (
+                    <g>
+                      <line x1={calibrateDialog.p1.x} y1={calibrateDialog.p1.y} x2={calibrateDialog.p2.x} y2={calibrateDialog.p2.y} stroke="#f97316" strokeWidth={3 / zoom} strokeDasharray={`${8 / zoom} ${4 / zoom}`} />
+                      <circle cx={calibrateDialog.p1.x} cy={calibrateDialog.p1.y} r={6 / zoom} fill="#f97316" stroke="#fff" strokeWidth={2 / zoom} />
+                      <circle cx={calibrateDialog.p2.x} cy={calibrateDialog.p2.y} r={6 / zoom} fill="#f97316" stroke="#fff" strokeWidth={2 / zoom} />
+                    </g>
                   )}
                 </svg>
 
@@ -802,12 +1088,19 @@ export default function EditorPlantas() {
         </div>
 
         {/* ── STATUS BAR ── */}
-        <div style={{ background: DARK.toolbar, borderTop: `1px solid ${DARK.border}`, padding: "4px 16px", display: "flex", alignItems: "center", gap: "16px", fontSize: "11px", color: DARK.textDim }}>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <Camera size={12} color="#ef4444" /> {cameraCount} câmera{cameraCount !== 1 && "s"}
-          </span>
-          <span>{totalEquip} equipamento{totalEquip !== 1 && "s"} total</span>
-          <span>{measureLines.length} medição{measureLines.length !== 1 && "ões"}</span>
+        <div style={{ background: DARK.toolbar, borderTop: `1px solid ${DARK.border}`, padding: "4px 16px", display: "flex", alignItems: "center", gap: "12px", fontSize: "11px", color: DARK.textDim, flexWrap: "wrap" }}>
+          {EQUIPMENT.map(eq => {
+            const c = counts[eq.type] || 0;
+            if (c === 0) return null;
+            const Icon = eq.icon;
+            return (
+              <span key={eq.type} style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                <Icon size={11} color={eq.color} /> {c}
+              </span>
+            );
+          })}
+          <span style={{ fontWeight: 600 }}>{totalEquip} total</span>
+          <span>| {measureLines.length} medição{measureLines.length !== 1 ? "ões" : ""}</span>
           <div style={{ flex: 1 }} />
           <span>Zoom: {Math.round(zoom * 100)}%</span>
           <span>Escala: 1px = {scale}m</span>
@@ -964,6 +1257,67 @@ export default function EditorPlantas() {
                 <Trash2 size={13} /> Excluir
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CALIBRATION DIALOG ── */}
+      {calibrateDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: DARK.sidebar, borderRadius: "12px", padding: "24px", width: "340px", border: `1px solid ${DARK.border}` }}>
+            <div style={{ fontSize: "15px", fontWeight: 700, marginBottom: "4px", color: DARK.text }}>Calibrar Escala</div>
+            <div style={{ fontSize: "12px", color: DARK.textMuted, marginBottom: "16px" }}>
+              A linha traçada tem <strong style={{ color: "#f97316" }}>{Math.round(calibrateDialog.pixelDist)} pixels</strong>. Quantos metros ela representa na planta real?
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+              <input
+                autoFocus
+                type="number"
+                value={calibrateMeters}
+                onChange={e => setCalibrateMeters(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const m = parseFloat(calibrateMeters);
+                    if (m > 0) {
+                      setScale(m / calibrateDialog.pixelDist);
+                      setCalibrateDialog(null);
+                      setTool("select");
+                    }
+                  }
+                }}
+                placeholder="Ex: 5.0"
+                step="0.1"
+                min="0.01"
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "6px", border: `1px solid ${DARK.border}`, background: DARK.bg, color: DARK.text, fontSize: "16px", textAlign: "center" }}
+              />
+              <span style={{ fontSize: "14px", color: DARK.textMuted, fontWeight: 600 }}>metros</span>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => { setCalibrateDialog(null); setTool("select"); }}
+                style={{ flex: 1, padding: "8px", borderRadius: "6px", border: `1px solid ${DARK.border}`, cursor: "pointer", fontSize: "12px", fontWeight: 600, background: DARK.card, color: DARK.textMuted }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const m = parseFloat(calibrateMeters);
+                  if (m > 0) {
+                    setScale(m / calibrateDialog.pixelDist);
+                    setCalibrateDialog(null);
+                    setTool("select");
+                  }
+                }}
+                style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, background: "#f97316", color: "#fff" }}
+              >
+                Aplicar escala
+              </button>
+            </div>
+            {calibrateMeters && parseFloat(calibrateMeters) > 0 && (
+              <div style={{ marginTop: "12px", padding: "8px", borderRadius: "6px", background: DARK.bg, fontSize: "11px", color: DARK.textMuted, textAlign: "center" }}>
+                Nova escala: 1 pixel = {(parseFloat(calibrateMeters) / calibrateDialog.pixelDist).toFixed(4)} metros
+              </div>
+            )}
           </div>
         </div>
       )}
