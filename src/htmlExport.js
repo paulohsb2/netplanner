@@ -60,7 +60,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
   <title>${projectName} — NetPlanner 3D</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#060c18;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw}
+    body{background:#e8ecf1;color:#1a2332;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw}
     #canvas-container{position:fixed;inset:0}
 
     /* ── Header ── */
@@ -68,64 +68,64 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       position:fixed;top:0;left:0;right:0;z-index:100;
       padding:10px 20px;
       display:flex;align-items:center;justify-content:space-between;gap:16px;
-      background:linear-gradient(180deg,rgba(6,12,24,0.97) 0%,rgba(6,12,24,0) 100%);
+      background:linear-gradient(180deg,rgba(248,249,251,0.97) 0%,rgba(248,249,251,0) 100%);
     }
     .header-left{display:flex;align-items:center;gap:14px}
-    .logo-icon{width:36px;height:36px;background:#1e3a5f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .company-logo{width:36px;height:36px;object-fit:contain;border-radius:8px;background:#fff;padding:2px}
-    .project-title{font-size:16px;font-weight:700;color:#f1f5f9;line-height:1.2}
-    .project-sub{font-size:11px;color:#64748b;margin-top:1px}
-    .badge{background:#1e3a5f;color:#93c5fd;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #2563eb40;letter-spacing:.4px}
+    .logo-icon{width:36px;height:36px;background:#dbeafe;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .company-logo{width:36px;height:36px;object-fit:contain;border-radius:8px;background:#fff;padding:2px;border:1px solid #dfe3ea}
+    .project-title{font-size:16px;font-weight:700;color:#1a2332;line-height:1.2}
+    .project-sub{font-size:11px;color:#5f6b7a;margin-top:1px}
+    .badge{background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #bfdbfe;letter-spacing:.4px}
 
     /* ── Client info ── */
-    .client-name{font-size:14px;font-weight:700;color:#f1f5f9}
-    .client-info{font-size:11px;color:#64748b;margin-top:2px}
+    .client-name{font-size:14px;font-weight:700;color:#1a2332}
+    .client-info{font-size:11px;color:#5f6b7a;margin-top:2px}
 
     /* ── Pages ── */
     .pages-bar{
       position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:100;
       display:flex;gap:4px;padding:6px;
-      background:rgba(6,12,24,0.9);border-radius:12px;border:1px solid #1e293b;
-      backdrop-filter:blur(12px);
+      background:rgba(255,255,255,0.92);border-radius:12px;border:1px solid #dfe3ea;
+      backdrop-filter:blur(12px);box-shadow:0 2px 8px rgba(0,0,0,0.08);
     }
     .page-btn{
       padding:5px 14px;border-radius:8px;border:1px solid transparent;
-      background:transparent;color:#64748b;cursor:pointer;font-size:12px;font-weight:600;
+      background:transparent;color:#5f6b7a;cursor:pointer;font-size:12px;font-weight:600;
       display:flex;align-items:center;gap:6px;transition:all .2s;font-family:inherit;
     }
-    .page-btn:hover{background:#1e293b;color:#e2e8f0}
-    .page-btn.active{background:#1e40af;color:#fff;border-color:#3b82f640}
-    .page-count{background:rgba(255,255,255,.12);border-radius:4px;padding:0 5px;font-size:10px}
+    .page-btn:hover{background:#f0f4f8;color:#1a2332}
+    .page-btn.active{background:#2563eb;color:#fff;border-color:#1d4ed840}
+    .page-count{background:rgba(0,0,0,.08);border-radius:4px;padding:0 5px;font-size:10px}
 
     /* ── Legend panel ── */
     .legend{
       position:fixed;bottom:20px;left:20px;z-index:100;
-      background:rgba(10,15,30,0.9);border:1px solid #1e293b;
+      background:rgba(255,255,255,0.92);border:1px solid #dfe3ea;
       border-radius:14px;padding:16px 18px;
-      backdrop-filter:blur(16px);min-width:180px;
+      backdrop-filter:blur(16px);min-width:180px;box-shadow:0 2px 12px rgba(0,0,0,0.08);
     }
-    .legend-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:10px}
+    .legend-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;margin-bottom:10px}
     .legend-item{display:flex;align-items:center;gap:8px;margin-bottom:7px}
     .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-    .legend-label{font-size:12px;color:#94a3b8;flex:1}
-    .legend-count{font-size:13px;font-weight:700;color:#f1f5f9}
-    .legend-total{border-top:1px solid #1e293b;padding-top:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center}
-    .legend-total-label{font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
-    .legend-total-value{font-size:18px;font-weight:800;color:#3b82f6}
+    .legend-label{font-size:12px;color:#5f6b7a;flex:1}
+    .legend-count{font-size:13px;font-weight:700;color:#1a2332}
+    .legend-total{border-top:1px solid #edf0f4;padding-top:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center}
+    .legend-total-label{font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .legend-total-value{font-size:18px;font-weight:800;color:#2563eb}
 
     /* ── Controls hint ── */
     .controls-hint{
       position:fixed;bottom:20px;right:20px;z-index:100;
-      background:rgba(10,15,30,0.85);border:1px solid #1e293b;
-      border-radius:10px;padding:10px 14px;font-size:10px;color:#475569;
-      backdrop-filter:blur(12px);line-height:1.8;
+      background:rgba(255,255,255,0.88);border:1px solid #dfe3ea;
+      border-radius:10px;padding:10px 14px;font-size:10px;color:#9ca3af;
+      backdrop-filter:blur(12px);line-height:1.8;box-shadow:0 2px 8px rgba(0,0,0,0.06);
     }
-    .controls-hint span{color:#64748b}
+    .controls-hint span{color:#5f6b7a}
 
     /* ── Watermark ── */
     .watermark{
       position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:99;
-      font-size:10px;color:#1e293b;font-weight:600;letter-spacing:.5px;
+      font-size:10px;color:#c8d0dc;font-weight:600;letter-spacing:.5px;
       pointer-events:none;
     }
   </style>
@@ -196,14 +196,14 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x060c18);
-    scene.fog = new THREE.Fog(0x060c18, 30, 120);
+    scene.background = new THREE.Color(0xe8ecf1);
+    scene.fog = new THREE.Fog(0xe8ecf1, 40, 160);
 
     /* ── Camera ── */
     const camera = new THREE.PerspectiveCamera(48, W / H, 0.01, 1000);
@@ -213,14 +213,14 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
     controls.maxPolarAngle = Math.PI / 2.05;
 
     /* ── Lights ── */
-    scene.add(new THREE.AmbientLight(0xc8d8f0, 0.45));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.65);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
     dir.castShadow = true;
     scene.add(dir);
-    scene.add(new THREE.PointLight(0x3b82f6, 0.6, 60));
+    scene.add(new THREE.PointLight(0xdbeafe, 0.3, 60));
 
     /* ── Grid ── */
-    const grid = new THREE.GridHelper(80, 30, 0x1a2744, 0x0f1a2e);
+    const grid = new THREE.GridHelper(80, 30, 0xb0baca, 0xc8d0dc);
     grid.position.y = -0.005;
     scene.add(grid);
 
@@ -305,6 +305,53 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       });
     }
 
+    /* ── 3D equipment shapes ── */
+    function build3DEquip(type, sz, color, x, z, rotY) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+      const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, metalness: 0.3, roughness: 0.4 });
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.2 });
+
+      if (type === 'camera') {
+        const bodyGrp = new THREE.Group();
+        bodyGrp.rotation.y = rotY;
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(sz, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), mat);
+        dome.userData.main = true; dome.castShadow = true;
+        bodyGrp.add(dome);
+        const lens = new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.2, sz * 0.26, sz * 0.28, 12), darkMat);
+        lens.rotation.x = Math.PI / 2; lens.position.set(0, sz * 0.2, sz * 0.78); lens.castShadow = true;
+        bodyGrp.add(lens);
+        group.add(bodyGrp);
+      } else if (type === 'wifi') {
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(sz, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.46), mat);
+        dome.userData.main = true; dome.castShadow = true;
+        group.add(dome);
+      } else if (type === 'switch') {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 2.4, sz * 0.5, sz * 1.1), mat);
+        body.position.y = sz * 0.25; body.userData.main = true; body.castShadow = true;
+        group.add(body);
+      } else if (type === 'router') {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 1.8, sz * 0.8, sz * 1.2), mat);
+        body.position.y = sz * 0.4; body.userData.main = true; body.castShadow = true;
+        group.add(body);
+        const antMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
+        [-0.52, 0.52].forEach(ox => {
+          const ant = new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.07, sz * 0.07, sz * 1.3, 8), antMat);
+          ant.position.set(sz * ox, sz * 1.4, sz * -0.38); ant.castShadow = true;
+          group.add(ant);
+        });
+      } else if (type === 'nvr') {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 2.2, sz * 1.1, sz * 1.4), mat);
+        body.position.y = sz * 0.55; body.userData.main = true; body.castShadow = true;
+        group.add(body);
+      } else {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(sz, 16, 16), mat);
+        s.position.y = sz; s.userData.main = true; s.castShadow = true;
+        group.add(s);
+      }
+      return group;
+    }
+
     /* ── Page rendering ── */
     let pageGroup = null;
 
@@ -329,14 +376,15 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       grid.scale.set(Math.max(bgW, bgH) * 0.2, 1, Math.max(bgW, bgH) * 0.2);
 
       // Camera position
-      camera.position.set(bgW * 0.5, bgW * 0.85, bgH + bgH * 0.6);
+      const maxDim = Math.max(bgW, bgH);
+      camera.position.set(bgW * 0.5, maxDim * 0.5, bgH * 0.95);
       controls.target.set(bgW / 2, 0, bgH / 2);
       controls.update();
 
-      // Dark base
+      // Base plate
       const baseMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(bgW * 1.6, bgH * 1.6),
-        new THREE.MeshStandardMaterial({ color: 0x0d1117, roughness: 1 })
+        new THREE.MeshStandardMaterial({ color: 0xd1d9e6, roughness: 1 })
       );
       baseMesh.rotation.x = -Math.PI / 2;
       baseMesh.position.set(bgW / 2, -0.02, bgH / 2);
@@ -363,26 +411,24 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
         const colorHex = '#' + color.toString(16).padStart(6,'0');
         const x = el.x * S, z = el.y * S;
         const sz = { small: 0.16, medium: 0.22, large: 0.30 }[el.size || 'medium'];
+        const rotY = -((el.rotation || 0) * Math.PI) / 180;
 
         // Base disc
-        const discGeo = new THREE.CircleGeometry(sz * 1.1, 32);
-        const discMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.18, depthWrite: false });
-        const disc = new THREE.Mesh(discGeo, discMat);
+        const disc = new THREE.Mesh(
+          new THREE.CircleGeometry(sz * 1.3, 32),
+          new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.15, depthWrite: false })
+        );
         disc.rotation.x = -Math.PI / 2;
         disc.position.set(x, 0.005, z);
         pageGroup.add(disc);
 
-        // Sphere
-        const sphere = new THREE.Mesh(
-          new THREE.SphereGeometry(sz, 20, 20),
-          new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, metalness: 0.35, roughness: 0.3 })
-        );
-        sphere.position.set(x, 0.22, z);
-        sphere.castShadow = true;
-        pageGroup.add(sphere);
+        // 3D equipment body
+        const eqGroup = build3DEquip(el.type, sz, color, x, z, rotY);
+        eqGroup.userData.isEquip = true;
+        pageGroup.add(eqGroup);
 
         // Label
-        addLabel(el.label, colorHex, new THREE.Vector3(x, 0.22 + sz + 0.2, z));
+        addLabel(el.label, colorHex, new THREE.Vector3(x, sz * 2.2, z));
 
         // Coverage
         if (el.radius > 0 && el.angle > 0) {
@@ -463,10 +509,10 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       requestAnimationFrame(animate);
       const t = clock.getElapsedTime();
 
-      // Animate emissive on spheres (simple pulse)
+      // Animate emissive pulse on equipment bodies
       pageGroup?.traverse(obj => {
-        if (obj.isMesh && obj.geometry?.type === 'SphereGeometry' && obj.material?.emissive) {
-          obj.material.emissiveIntensity = 0.25 + 0.12 * Math.sin(t * 1.5);
+        if (obj.isMesh && obj.userData.main && obj.material?.emissive) {
+          obj.material.emissiveIntensity = 0.12 + 0.06 * Math.sin(t * 1.5);
         }
       });
 

@@ -115,101 +115,132 @@ function FloorPlane({ bgImage, width, height }) {
 }
 
 /* ═══════════════════════════════════
+   EQUIPMENT 3D BODY
+═══════════════════════════════════ */
+function EquipBody3D({ type, sz, color, rotY }) {
+  switch (type) {
+    case "camera":
+      return (
+        <group rotation={[0, rotY, 0]}>
+          <mesh userData={{ main: true }} castShadow>
+            <sphereGeometry args={[sz, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, sz * 0.2, sz * 0.78]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.2, sz * 0.26, sz * 0.28, 12]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.2} />
+          </mesh>
+        </group>
+      );
+    case "wifi":
+      return (
+        <mesh userData={{ main: true }} castShadow>
+          <sphereGeometry args={[sz, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.46]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.2} roughness={0.5} />
+        </mesh>
+      );
+    case "switch":
+      return (
+        <mesh userData={{ main: true }} position={[0, sz * 0.25, 0]} castShadow>
+          <boxGeometry args={[sz * 2.4, sz * 0.5, sz * 1.1]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.35} roughness={0.35} />
+        </mesh>
+      );
+    case "router":
+      return (
+        <group>
+          <mesh userData={{ main: true }} position={[0, sz * 0.4, 0]} castShadow>
+            <boxGeometry args={[sz * 1.8, sz * 0.8, sz * 1.2]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.25} roughness={0.45} />
+          </mesh>
+          {[-0.52, 0.52].map((ox, i) => (
+            <mesh key={i} position={[sz * ox, sz * 1.4, sz * -0.38]} castShadow>
+              <cylinderGeometry args={[sz * 0.07, sz * 0.07, sz * 1.3, 8]} />
+              <meshStandardMaterial color="#334155" roughness={0.5} />
+            </mesh>
+          ))}
+        </group>
+      );
+    case "nvr":
+      return (
+        <mesh userData={{ main: true }} position={[0, sz * 0.55, 0]} castShadow>
+          <boxGeometry args={[sz * 2.2, sz * 1.1, sz * 1.4]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+        </mesh>
+      );
+    default:
+      return (
+        <mesh userData={{ main: true }} position={[0, sz, 0]} castShadow>
+          <sphereGeometry args={[sz, 16, 16]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+        </mesh>
+      );
+  }
+}
+
+/* ═══════════════════════════════════
    EQUIPMENT MARKER
 ═══════════════════════════════════ */
 function EquipMarker({ el, color, selected, onSelect }) {
   const x = el.x * S;
   const z = el.y * S;
   const sz = SIZES[el.size || "medium"];
-  const sphereRef = useRef();
+  const bodyRef = useRef();
   const ringRef = useRef();
+  const rotY = -((el.rotation || 0) * Math.PI) / 180;
 
   useFrame(({ clock }) => {
-    if (!sphereRef.current) return;
+    if (!bodyRef.current) return;
     const t = clock.elapsedTime;
-    sphereRef.current.material.emissiveIntensity = selected
-      ? 0.7 + 0.25 * Math.sin(t * 3.5)
-      : 0.25 + 0.1 * Math.sin(t * 1.5);
+    const intensity = selected
+      ? 0.5 + 0.2 * Math.sin(t * 3.5)
+      : 0.15 + 0.07 * Math.sin(t * 1.5);
+    bodyRef.current.traverse((obj) => {
+      if (obj.isMesh && obj.userData.main && obj.material?.emissive) {
+        obj.material.emissiveIntensity = intensity;
+      }
+    });
     if (ringRef.current) {
-      ringRef.current.material.opacity = 0.5 + 0.4 * Math.sin(t * 3.5);
+      ringRef.current.material.opacity = 0.4 + 0.35 * Math.sin(t * 3.5);
     }
   });
 
   return (
     <group position={[x, 0, z]}>
-      {/* Base disc (shadow/ground contact) */}
+      {/* Base disc */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <circleGeometry args={[sz * 1.1, 32]} />
-        <meshStandardMaterial
-          color={color}
-          transparent
-          opacity={0.18}
-          emissive={color}
-          emissiveIntensity={0.3}
-          depthWrite={false}
-        />
+        <circleGeometry args={[sz * 1.3, 32]} />
+        <meshStandardMaterial color={color} transparent opacity={0.15} depthWrite={false} />
       </mesh>
 
-      {/* Equipment sphere */}
-      <mesh
-        position={[0, EQ_H, 0]}
-        ref={sphereRef}
-        onClick={(e) => { e.stopPropagation(); onSelect(el.id); }}
-        castShadow
-      >
-        <sphereGeometry args={[sz, 24, 24]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.25}
-          metalness={0.35}
-          roughness={0.3}
-        />
-      </mesh>
+      {/* Equipment 3D body */}
+      <group ref={bodyRef} onClick={(e) => { e.stopPropagation(); onSelect(el.id); }}>
+        <EquipBody3D type={el.type} sz={sz} color={color} rotY={rotY} />
+      </group>
 
       {/* Selection ring */}
       {selected && (
-        <mesh
-          ref={ringRef}
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, 0.01, 0]}
-        >
-          <ringGeometry args={[sz * 1.3, sz * 1.7, 36]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={1.2}
-            transparent
-            opacity={0.7}
-            depthWrite={false}
-          />
+        <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+          <ringGeometry args={[sz * 1.5, sz * 2.0, 36]} />
+          <meshStandardMaterial color={color} transparent opacity={0.5} depthWrite={false} />
         </mesh>
       )}
 
       {/* Label */}
-      <Html
-        position={[0, EQ_H + sz + 0.2, 0]}
-        center
-        distanceFactor={14}
-        zIndexRange={[100, 200]}
-        occlude={false}
-      >
-        <div
-          style={{
-            background: "rgba(10,15,30,0.92)",
-            color: "#f1f5f9",
-            padding: "2px 8px 3px",
-            borderRadius: "5px",
-            fontSize: "11px",
-            fontWeight: 700,
-            whiteSpace: "nowrap",
-            border: `1px solid ${color}60`,
-            fontFamily: "system-ui,sans-serif",
-            pointerEvents: "none",
-            letterSpacing: "0.3px",
-            boxShadow: `0 0 10px ${color}30`,
-          }}
-        >
+      <Html position={[0, sz * 2.2, 0]} center distanceFactor={14} zIndexRange={[100, 200]} occlude={false}>
+        <div style={{
+          background: "rgba(15,20,40,0.88)",
+          color: "#f1f5f9",
+          padding: "2px 8px 3px",
+          borderRadius: "5px",
+          fontSize: "11px",
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+          border: `1px solid ${color}60`,
+          fontFamily: "system-ui,sans-serif",
+          pointerEvents: "none",
+          letterSpacing: "0.3px",
+        }}>
           {el.label}
         </div>
       </Html>
@@ -508,9 +539,9 @@ export default function Scene3D({
     return eq && layerVisibility[eq.layer] !== false;
   });
 
-  // Camera start position: above and angled
+  // Camera start position: isometric angle
   const camPos = useMemo(
-    () => [bgW * 0.5, bgW * 0.85, bgH + bgH * 0.6],
+    () => [bgW * 0.5, Math.max(bgW, bgH) * 0.5, bgH * 0.95],
     [bgW, bgH]
   );
   const target = useMemo(() => [bgW / 2, 0, bgH / 2], [bgW, bgH]);
