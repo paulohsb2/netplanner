@@ -79,20 +79,130 @@ const EquipIcon = ({ type, variant = 0, size = 16, color = "#fff" }) => {
   );
 };
 
-/* Draw equipment icon on canvas context */
-const drawEquipIconCanvas = (ctx, type, variant, x, y, size, color) => {
-  ctx.save();
-  ctx.translate(x - size / 2, y - size / 2);
-  ctx.scale(size / 24, size / 24);
-  const variants = ICON_VARIANTS[type];
-  const v = variants?.[variant] || variants?.[0];
-  if (v) {
-    const p2d = new Path2D(v.path);
-    ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.stroke(p2d);
+/* ═══ PROFESSIONAL EQUIPMENT SHAPES (top-down technical view) ═══ */
+const equipSVGStr = (type, color, rotation = 0) => {
+  const c = (color || "#888").replace(/[<>"]/g, "");
+  const r = Number(rotation) || 0;
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:100%;height:100%;display:block">`;
+  const close = `</svg>`;
+  switch (type) {
+    case "camera": return open + `
+      <circle cx="50" cy="50" r="46" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="3"/>
+      <circle cx="50" cy="50" r="36" fill="#0f1824"/>
+      <circle cx="50" cy="50" r="27" fill="none" stroke="${c}" stroke-width="5"/>
+      <circle cx="50" cy="50" r="21" fill="#08101e"/>
+      <circle cx="50" cy="50" r="13" fill="${c}" opacity="0.7"/>
+      <circle cx="50" cy="50" r="5" fill="${c}" opacity="0.95"/>
+      <ellipse cx="42" cy="42" rx="5" ry="3" fill="white" opacity="0.28" transform="rotate(-35,50,50)"/>
+      <circle cx="96" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <circle cx="4" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <circle cx="50" cy="96" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <g transform="rotate(${r},50,50)">
+        <polygon points="50,2 41,16 59,16" fill="${c}" opacity="0.95"/>
+      </g>
+    ` + close;
+    case "wifi": return open + `
+      <circle cx="51" cy="52" r="46" fill="rgba(0,0,0,0.13)"/>
+      <circle cx="50" cy="50" r="46" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="2.5"/>
+      <circle cx="50" cy="50" r="41" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="34" fill="#e8edf5" stroke="#8fa0b8" stroke-width="1"/>
+      <circle cx="50" cy="50" r="26" fill="#dde4f0" stroke="#64748b" stroke-width="1"/>
+      <circle cx="50" cy="50" r="18" fill="#334155"/>
+      <circle cx="50" cy="50" r="10" fill="none" stroke="${c}" stroke-width="2.5"/>
+      <circle cx="50" cy="50" r="4" fill="${c}"/>
+      <circle cx="50" cy="6" r="3.5" fill="${c}" opacity="0.9"/>
+      <circle cx="88" cy="72" r="3.5" fill="${c}" opacity="0.9"/>
+      <circle cx="12" cy="72" r="3.5" fill="${c}" opacity="0.9"/>
+    ` + close;
+    case "switch": return open + `
+      <rect x="9" y="21" width="84" height="60" rx="6" fill="rgba(0,0,0,0.18)"/>
+      <rect x="8" y="20" width="84" height="60" rx="6" fill="#1e293b" stroke="rgba(255,255,255,0.75)" stroke-width="2"/>
+      <rect x="8" y="20" width="84" height="14" rx="5" fill="#263548"/>
+      <circle cx="18" cy="27" r="3" fill="#22c55e"/>
+      <circle cx="27" cy="27" r="3" fill="#22c55e"/>
+      <circle cx="36" cy="27" r="3" fill="#3b82f6"/>
+      <circle cx="45" cy="27" r="2" fill="#374151"/>
+      <circle cx="84" cy="27" r="4" fill="#22c55e" stroke="#15803d" stroke-width="1"/>
+      <rect x="12" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="22" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="32" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="42" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="52" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="62" y="40" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="72" y="40" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="82" y="40" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="12" y="50" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="22" y="50" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="32" y="50" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="42" y="50" width="7" height="5" rx="1" fill="#22c55e"/>
+      <rect x="52" y="50" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="62" y="50" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="72" y="50" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="82" y="50" width="7" height="5" rx="1" fill="#374151"/>
+      <rect x="12" y="62" width="14" height="8" rx="2" fill="#f59e0b"/>
+      <rect x="28" y="62" width="14" height="8" rx="2" fill="#374151"/>
+    ` + close;
+    case "router": return open + `
+      <rect x="15" y="29" width="72" height="44" rx="6" fill="rgba(0,0,0,0.18)"/>
+      <rect x="14" y="28" width="72" height="44" rx="6" fill="#2d1b69" stroke="rgba(255,255,255,0.75)" stroke-width="2"/>
+      <rect x="14" y="28" width="72" height="13" rx="5" fill="#3b1f80"/>
+      <circle cx="24" cy="35" r="3" fill="#22c55e"/>
+      <circle cx="33" cy="35" r="3" fill="#22c55e"/>
+      <circle cx="42" cy="35" r="3" fill="#3b82f6"/>
+      <circle cx="51" cy="35" r="2.5" fill="#374151"/>
+      <circle cx="78" cy="35" r="4" fill="${c}" stroke="rgba(255,255,255,0.7)" stroke-width="1"/>
+      <circle cx="21" cy="8" r="7" fill="#3b1f80" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      <circle cx="21" cy="8" r="3.5" fill="${c}" opacity="0.85"/>
+      <circle cx="79" cy="8" r="7" fill="#3b1f80" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      <circle cx="79" cy="8" r="3.5" fill="${c}" opacity="0.85"/>
+      <rect x="19" y="13" width="4" height="17" rx="2" fill="#4c1d95"/>
+      <rect x="77" y="13" width="4" height="17" rx="2" fill="#4c1d95"/>
+      <rect x="20" y="52" width="11" height="8" rx="2" fill="#f59e0b"/>
+      <rect x="35" y="52" width="11" height="8" rx="2" fill="#374151"/>
+      <rect x="50" y="52" width="11" height="8" rx="2" fill="#374151"/>
+      <rect x="65" y="52" width="11" height="8" rx="2" fill="#374151"/>
+      <rect x="14" y="63" width="72" height="9" fill="#1e1042"/>
+    ` + close;
+    case "nvr": return open + `
+      <rect x="9" y="19" width="84" height="64" rx="6" fill="rgba(0,0,0,0.18)"/>
+      <rect x="8" y="18" width="84" height="64" rx="6" fill="#0f1f2e" stroke="rgba(255,255,255,0.75)" stroke-width="2"/>
+      <rect x="8" y="18" width="84" height="13" rx="5" fill="#162636"/>
+      <circle cx="18" cy="25" r="3" fill="#22c55e"/>
+      <circle cx="27" cy="25" r="3" fill="#22c55e"/>
+      <circle cx="36" cy="25" r="3" fill="#f59e0b"/>
+      <circle cx="45" cy="25" r="2" fill="#374151"/>
+      <circle cx="80" cy="25" r="5" fill="${c}" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      <line x1="80" y1="20" x2="80" y2="25" stroke="white" stroke-width="1.5"/>
+      <rect x="13" y="35" width="23" height="36" rx="3" fill="#1a3040" stroke="#2d4a60" stroke-width="1.5"/>
+      <circle cx="24.5" cy="51" r="9" fill="#0a1828" stroke="#1d4ed8" stroke-width="1.2"/>
+      <circle cx="24.5" cy="51" r="4" fill="#1d4ed8" opacity="0.6"/>
+      <circle cx="24.5" cy="51" r="1.5" fill="#60a5fa"/>
+      <line x1="24.5" y1="42" x2="30" y2="51" stroke="#60a5fa" stroke-width="1.5"/>
+      <circle cx="24.5" cy="65" r="2.5" fill="#22c55e"/>
+      <rect x="40" y="35" width="23" height="36" rx="3" fill="#1a3040" stroke="#2d4a60" stroke-width="1.5"/>
+      <circle cx="51.5" cy="51" r="9" fill="#0a1828" stroke="#1d4ed8" stroke-width="1.2"/>
+      <circle cx="51.5" cy="51" r="4" fill="#1d4ed8" opacity="0.6"/>
+      <circle cx="51.5" cy="51" r="1.5" fill="#60a5fa"/>
+      <line x1="51.5" y1="42" x2="57" y2="51" stroke="#60a5fa" stroke-width="1.5"/>
+      <circle cx="51.5" cy="65" r="2.5" fill="#22c55e"/>
+      <rect x="67" y="35" width="23" height="36" rx="3" fill="#1a3040" stroke="#2d4a60" stroke-width="1.5"/>
+      <circle cx="78.5" cy="51" r="9" fill="#0a1828" stroke="#1d4ed8" stroke-width="1.2"/>
+      <circle cx="78.5" cy="51" r="4" fill="#1d4ed8" opacity="0.6"/>
+      <circle cx="78.5" cy="51" r="1.5" fill="#60a5fa"/>
+      <line x1="78.5" y1="42" x2="84" y2="51" stroke="#60a5fa" stroke-width="1.5"/>
+      <circle cx="78.5" cy="65" r="2.5" fill="#374151"/>
+    ` + close;
+    default: return open + `<circle cx="50" cy="50" r="46" fill="${c}" stroke="rgba(255,255,255,0.85)" stroke-width="3"/>` + close;
   }
-  ctx.restore();
 };
+
+/* React component — renders equipment shape inline */
+const EquipShape2D = ({ type, color, size, rotation = 0 }) => (
+  <div
+    style={{ width: size, height: size, lineHeight: 0, flexShrink: 0, overflow: "hidden" }}
+    dangerouslySetInnerHTML={{ __html: equipSVGStr(type, color, rotation) }}
+  />
+);
 
 /* Refined light palette */
 const T = {
@@ -260,12 +370,15 @@ export default function NetPlanner() {
   useEffect(() => { const el = canvasRef.current; if (!el) return; const p = (e) => e.preventDefault(); el.addEventListener("wheel", p, { passive: false }); return () => el.removeEventListener("wheel", p); }, []);
 
   /* ─── render to canvas ─── */
-  const renderToCanvas = (pg) => new Promise((resolve) => {
+  const renderToCanvas = (pg) => new Promise(async (resolve) => {
     const c = document.createElement("canvas"); c.width = pg.bgNatural.w; c.height = pg.bgNatural.h; const ctx = c.getContext("2d");
+    // Pre-load all equipment SVG icons
+    const iconMap = {};
+    await Promise.all(pg.elements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return Promise.resolve(); const col = el.customColor || eq.color; const key = `${el.type}|${col}|${el.rotation}`; if (iconMap[key]) return Promise.resolve(); return new Promise(r => { const img = new window.Image(); img.onload = () => { iconMap[key] = img; r(); }; img.onerror = r; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(equipSVGStr(el.type, col, el.rotation)); }); }));
     const draw = () => {
       pg.connections.forEach(cn => { const f = pg.elements.find(e => e.id === cn.from), t = pg.elements.find(e => e.id === cn.to); if (!f || !t) return; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(t.x, t.y); ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); });
       pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq || el.radius <= 0 || el.angle <= 0) return; const col = el.customColor || eq.color; ctx.save(); ctx.translate(el.x, el.y); ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180); ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180); ctx.closePath(); ctx.fillStyle = col + "45"; ctx.strokeStyle = col + "99"; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke(); ctx.restore(); });
-      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const r = 12; ctx.beginPath(); ctx.arc(el.x, el.y, r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); drawEquipIconCanvas(ctx, el.type, el.iconVariant || 0, el.x, el.y, 16, "#fff"); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + r + 4, el.y + 4); ctx.fillText(el.label, el.x + r + 4, el.y + 4); });
+      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; const key = `${el.type}|${col}|${el.rotation}`; const icon = iconMap[key]; if (icon) ctx.drawImage(icon, el.x - sz / 2, el.y - sz / 2, sz, sz); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + sz / 2 + 4, el.y + 4); ctx.fillText(el.label, el.x + sz / 2 + 4, el.y + 4); });
       pg.measureLines.forEach(ml => { ctx.beginPath(); ctx.moveTo(ml.p1.x, ml.p1.y); ctx.lineTo(ml.p2.x, ml.p2.y); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.8; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]); const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#92400e"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); ctx.fillText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); });
       resolve(c);
     };
@@ -692,12 +805,10 @@ export default function NetPlanner() {
                   {calibratePoints.length === 1 && <circle cx={calibratePoints[0].x} cy={calibratePoints[0].y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} />}
                   {calibrateDialog && <><line x1={calibrateDialog.p1.x} y1={calibrateDialog.p1.y} x2={calibrateDialog.p2.x} y2={calibrateDialog.p2.y} stroke="#ea580c" strokeWidth={2.5 / zoom} strokeDasharray={`${7 / zoom} ${4 / zoom}`} /><circle cx={calibrateDialog.p1.x} cy={calibrateDialog.p1.y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} /><circle cx={calibrateDialog.p2.x} cy={calibrateDialog.p2.y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} /></>}
                 </svg>
-                {visibleElements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return null; const isSel = selectedId === el.id; const isCbl = cableStart === el.id; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; return (
-                  <div key={el.id} onMouseDown={(e) => startDrag(e, el.id)} onClick={(e) => { e.stopPropagation(); if (tool === "cable") handleCanvasClick(e); else { setSelectedId(el.id); setSelectedMeasure(null); } }} style={{ position: "absolute", left: el.x - sz / 2, top: el.y - sz / 2, width: sz, height: sz, cursor: tool === "cable" ? "cell" : "pointer", zIndex: isSel ? 100 : 10 }}>
-                    {(isSel || isCbl) && <div style={{ position: "absolute", inset: -5, borderRadius: "50%", border: `2px solid ${isCbl ? T.success : col}`, opacity: .5, animation: "pulse 1.5s infinite" }} />}
-                    <div style={{ width: sz, height: sz, borderRadius: "50%", background: col, border: `2.5px solid #fff`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${col}40, 0 0 0 ${isSel ? "3px" : "0"} ${col}30` }}>
-                      <EquipIcon type={el.type} variant={el.iconVariant || 0} size={sz * .52} color="#fff" />
-                    </div>
+                {visibleElements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return null; const isSel = selectedId === el.id; const isCbl = cableStart === el.id; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; const isRound = el.type === "camera" || el.type === "wifi"; return (
+                  <div key={el.id} onMouseDown={(e) => startDrag(e, el.id)} onClick={(e) => { e.stopPropagation(); if (tool === "cable") handleCanvasClick(e); else { setSelectedId(el.id); setSelectedMeasure(null); } }} style={{ position: "absolute", left: el.x - sz / 2, top: el.y - sz / 2, width: sz, height: sz, cursor: tool === "cable" ? "cell" : "pointer", zIndex: isSel ? 100 : 10, filter: isSel ? `drop-shadow(0 0 6px ${col})` : `drop-shadow(0 2px 4px rgba(0,0,0,0.35))` }}>
+                    {(isSel || isCbl) && <div style={{ position: "absolute", inset: -6, borderRadius: isRound ? "50%" : "10px", border: `2.5px solid ${isCbl ? T.success : col}`, opacity: .65, animation: "pulse 1.5s infinite", pointerEvents: "none" }} />}
+                    <EquipShape2D type={el.type} color={col} size={sz} rotation={el.rotation} />
                     <div style={{ position: "absolute", left: "50%", top: sz + 4 + "px", transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: Math.max(9, 10 / Math.sqrt(zoom)), fontWeight: 700, color: T.text, textShadow: "0 0 4px #fff, 0 0 8px #fff, 0 1px 2px rgba(0,0,0,.15)", pointerEvents: "none" }}>{el.label}</div>
                   </div>); })}
               </div>
