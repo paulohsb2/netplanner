@@ -118,61 +118,75 @@ function FloorPlane({ bgImage, width, height }) {
    EQUIPMENT 3D BODY
 ═══════════════════════════════════ */
 function EquipBody3D({ type, sz, color, rotY }) {
+  const mat = <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />;
   switch (type) {
     case "camera":
+      // Cilindro corpo + lente projetada na direção de rotação
       return (
         <group rotation={[0, rotY, 0]}>
-          <mesh userData={{ main: true }} castShadow>
-            <sphereGeometry args={[sz, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+          <mesh userData={{ main: true }} position={[0, sz * 0.35, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.9, sz * 0.9, sz * 0.7, 20]} />
+            {mat}
           </mesh>
-          <mesh position={[0, sz * 0.2, sz * 0.78]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-            <cylinderGeometry args={[sz * 0.2, sz * 0.26, sz * 0.28, 12]} />
+          {/* Lente frontal */}
+          <mesh position={[0, sz * 0.35, sz * 0.95]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.38, sz * 0.44, sz * 0.55, 14]} />
             <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.2} />
           </mesh>
         </group>
       );
     case "wifi":
+      // Disco plano (AP de teto)
       return (
-        <mesh userData={{ main: true }} castShadow>
-          <sphereGeometry args={[sz, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.46]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.2} roughness={0.5} />
-        </mesh>
+        <group>
+          <mesh userData={{ main: true }} position={[0, sz * 0.18, 0]} castShadow>
+            <cylinderGeometry args={[sz * 1.3, sz * 1.3, sz * 0.35, 28]} />
+            {mat}
+          </mesh>
+          {/* Botão central */}
+          <mesh position={[0, sz * 0.38, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.3, sz * 0.3, sz * 0.12, 16]} />
+            <meshStandardMaterial color="#fff" metalness={0.2} roughness={0.6} />
+          </mesh>
+        </group>
       );
     case "switch":
+      // Caixa rack plana
       return (
-        <mesh userData={{ main: true }} position={[0, sz * 0.25, 0]} castShadow>
-          <boxGeometry args={[sz * 2.4, sz * 0.5, sz * 1.1]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.35} roughness={0.35} />
+        <mesh userData={{ main: true }} position={[0, sz * 0.2, 0]} castShadow>
+          <boxGeometry args={[sz * 2.6, sz * 0.4, sz * 1.2]} />
+          {mat}
         </mesh>
       );
     case "router":
+      // Caixa + 2 antenas verticais
       return (
         <group>
-          <mesh userData={{ main: true }} position={[0, sz * 0.4, 0]} castShadow>
-            <boxGeometry args={[sz * 1.8, sz * 0.8, sz * 1.2]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.25} roughness={0.45} />
+          <mesh userData={{ main: true }} position={[0, sz * 0.45, 0]} castShadow>
+            <boxGeometry args={[sz * 1.9, sz * 0.9, sz * 1.3]} />
+            {mat}
           </mesh>
-          {[-0.52, 0.52].map((ox, i) => (
-            <mesh key={i} position={[sz * ox, sz * 1.4, sz * -0.38]} castShadow>
-              <cylinderGeometry args={[sz * 0.07, sz * 0.07, sz * 1.3, 8]} />
+          {[-0.55, 0.55].map((ox, i) => (
+            <mesh key={i} position={[sz * ox, sz * 1.6, sz * -0.42]} castShadow>
+              <cylinderGeometry args={[sz * 0.09, sz * 0.09, sz * 1.5, 8]} />
               <meshStandardMaterial color="#334155" roughness={0.5} />
             </mesh>
           ))}
         </group>
       );
     case "nvr":
+      // Caixa DVR/NVR
       return (
-        <mesh userData={{ main: true }} position={[0, sz * 0.55, 0]} castShadow>
-          <boxGeometry args={[sz * 2.2, sz * 1.1, sz * 1.4]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+        <mesh userData={{ main: true }} position={[0, sz * 0.6, 0]} castShadow>
+          <boxGeometry args={[sz * 2.4, sz * 1.2, sz * 1.5]} />
+          {mat}
         </mesh>
       );
     default:
       return (
         <mesh userData={{ main: true }} position={[0, sz, 0]} castShadow>
           <sphereGeometry args={[sz, 16, 16]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
+          {mat}
         </mesh>
       );
   }
@@ -227,19 +241,20 @@ function EquipMarker({ el, color, selected, onSelect }) {
       )}
 
       {/* Label */}
-      <Html position={[0, sz * 2.2, 0]} center distanceFactor={14} zIndexRange={[100, 200]} occlude={false}>
+      <Html position={[0, sz * 2.0, 0]} center zIndexRange={[100, 200]} occlude={false}>
         <div style={{
-          background: "rgba(15,20,40,0.88)",
+          background: "rgba(15,20,40,0.82)",
           color: "#f1f5f9",
-          padding: "2px 8px 3px",
-          borderRadius: "5px",
-          fontSize: "11px",
+          padding: "2px 7px",
+          borderRadius: "4px",
+          fontSize: "10px",
           fontWeight: 700,
           whiteSpace: "nowrap",
-          border: `1px solid ${color}60`,
+          border: `1px solid ${color}50`,
           fontFamily: "system-ui,sans-serif",
           pointerEvents: "none",
-          letterSpacing: "0.3px",
+          letterSpacing: "0.2px",
+          transform: "scale(0.85)",
         }}>
           {el.label}
         </div>
