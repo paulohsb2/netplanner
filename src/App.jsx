@@ -8,6 +8,7 @@ import {
   Link2, Image, Building2, Box
 } from "lucide-react";
 import { generateViewerHTML } from "./htmlExport";
+import { calcAllDori, CAMERA_PRESETS, DORI_ZONES, DORI_COLORS, DORI_LABELS, DORI_OPACITIES, defaultCameraSpec, calcStorage } from "./doriCalc";
 const Scene3D = lazy(() => import("./Scene3D"));
 
 /* ═══ CONSTANTS ═══ */
@@ -110,6 +111,19 @@ const makeBlankPage = (id, name) => ({
   elements: [], measureLines: [], connections: [],
 });
 
+/** Build SVG arc-sector path for coverage areas */
+function makeSectorPath(cx, cy, radius, angle, rotation) {
+  if (angle >= 360) {
+    return `M ${cx + radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx - radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx + radius} ${cy}`;
+  }
+  const sa = (rotation - angle / 2) * Math.PI / 180;
+  const ea = (rotation + angle / 2) * Math.PI / 180;
+  const x1 = cx + radius * Math.cos(sa), y1 = cy + radius * Math.sin(sa);
+  const x2 = cx + radius * Math.cos(ea), y2 = cy + radius * Math.sin(ea);
+  const la = angle > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${la} 1 ${x2} ${y2} Z`;
+}
+
 /* ═══ MAIN ═══ */
 export default function NetPlanner() {
   const [pages, setPages] = useState([makeBlankPage("page-1", "Pavimento 1")]);
@@ -144,6 +158,9 @@ export default function NetPlanner() {
   const [nextNumbers, setNextNumbers] = useState({ camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 });
   const [pdfDialog, setPdfDialog] = useState(false);
   const [view3D, setView3D] = useState(false);
+  const [calcModal, setCalcModal] = useState(false);
+  const [calcHours, setCalcHours] = useState(24);
+  const [calcDays, setCalcDays] = useState(30);
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -191,7 +208,10 @@ export default function NetPlanner() {
     if (tool.startsWith("place:")) {
       const type = tool.split(":")[1]; const eq = EQUIPMENT.find(eq => eq.type === type); if (!eq) return;
       saveSnapshot(); const num = nextNumbers[type]; setNextNumbers(prev => ({ ...prev, [type]: prev[type] + 1 }));
-      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: eq.angle, radius: eq.coverageRadius, visible: true, notes: "", customColor: null, size: "medium", iconVariant: 0 };
+      const camSpec = type === "camera" ? defaultCameraSpec() : null;
+      const initAngle = camSpec ? camSpec.fovH : eq.angle;
+      const initRadius = camSpec ? camSpec.doriDistances.detection / scale : eq.coverageRadius;
+      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: initAngle, radius: initRadius, visible: true, notes: "", customColor: null, size: "medium", iconVariant: 0, ...(camSpec ? { cameraSpec: camSpec } : {}) };
       setElements(prev => [...prev, el]); setSelectedId(el.id); return;
     }
     if (tool === "measure") { if (!measurePoints.length) setMeasurePoints([{ x, y }]); else { const p1 = measurePoints[0]; saveSnapshot(); setMeasureLines(prev => [...prev, { p1, p2: { x, y }, dist: Math.hypot(x - p1.x, y - p1.y) }]); setMeasurePoints([]); } return; }
@@ -212,6 +232,25 @@ export default function NetPlanner() {
   const updateEl = (id, p) => { saveSnapshot(); setElements(prev => prev.map(el => el.id === id ? { ...el, ...p } : el)); };
   const deleteEl = (id) => { saveSnapshot(); setElements(prev => prev.filter(el => el.id !== id)); setConnections(prev => prev.filter(c => c.from !== id && c.to !== id)); if (selectedId === id) setSelectedId(null); };
   const duplicateEl = (id) => { const el = elements.find(e => e.id === id); if (!el) return; saveSnapshot(); const eq = EQUIPMENT.find(eq => eq.type === el.type); const num = nextNumbers[el.type]; setNextNumbers(prev => ({ ...prev, [el.type]: prev[el.type] + 1 })); const cl = { ...el, id: `${el.type}-${Date.now()}`, x: el.x + 30, y: el.y + 30, number: num, label: `${eq.label} ${String(num).padStart(2, "0")}` }; setElements(prev => [...prev, cl]); setSelectedId(cl.id); };
+
+  const updateCameraSpec = (id, updates) => {
+    setElements(prev => prev.map(el => {
+      if (el.id !== id || el.type !== "camera") return el;
+      const cur = el.cameraSpec || defaultCameraSpec();
+      let newSpec;
+      if (updates.preset && updates.preset !== "custom") {
+        const p = CAMERA_PRESETS[updates.preset];
+        newSpec = { ...cur, ...p, preset: updates.preset };
+      } else {
+        newSpec = { ...cur, ...updates };
+        if (Object.keys(updates).some(k => k !== "preset")) newSpec.preset = "custom";
+      }
+      const { fovH, distances } = calcAllDori(newSpec);
+      newSpec.fovH = fovH;
+      newSpec.doriDistances = distances;
+      return { ...el, cameraSpec: newSpec, angle: fovH, radius: distances.detection / scale };
+    }));
+  };
 
   /* ─── keyboard ─── */
   useEffect(() => {
@@ -563,6 +602,7 @@ export default function NetPlanner() {
           <button onClick={exportPNG} style={btnS()} disabled={!page.bgImage}><Download size={13} /> PNG</button>
           <button onClick={() => setPdfDialog(true)} style={{ ...btnS(), background: pages.some(p => p.bgImage) ? T.accent : "transparent", color: pages.some(p => p.bgImage) ? "#fff" : T.textDim, borderRadius: "7px" }} disabled={!pages.some(p => p.bgImage)}><FileText size={13} /> PDF</button>
           <button onClick={exportHTML} style={btnS()} title="Exportar visualizador 3D (HTML standalone)"><Box size={13} /> HTML 3D</button>
+          <button onClick={() => setCalcModal(true)} style={{ ...btnS(), color: T.success }} title="Calculadora de Bandwidth e Storage">BW/Stor</button>
           <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
           <button onClick={() => setView3D(v => !v)} style={{ ...btnS(view3D), background: view3D ? "#0f172a" : "transparent", color: view3D ? "#60a5fa" : T.textMuted, border: view3D ? "1.5px solid #1e3a5f" : "none" }} title={view3D ? "Voltar ao 2D" : "Visualizar em 3D"}><Box size={13} /> {view3D ? "2D" : "3D"}</button>
           <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
@@ -627,7 +667,23 @@ export default function NetPlanner() {
                 {showGrid && <svg style={{ position: "absolute", top: 0, left: 0, width: page.bgNatural.w, height: page.bgNatural.h, pointerEvents: "none" }}><defs><pattern id="gr" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#94a3b8" strokeWidth="0.3" opacity=".25" /></pattern></defs><rect width="100%" height="100%" fill="url(#gr)" /></svg>}
                 <svg style={{ position: "absolute", top: 0, left: 0, width: page.bgNatural.w, height: page.bgNatural.h, pointerEvents: "none" }}>
                   {showCables && connections.map(cn => { const f = elements.find(e => e.id === cn.from), t = elements.find(e => e.id === cn.to); if (!f || !t) return null; return (<g key={cn.id} style={{ pointerEvents: "auto", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); saveSnapshot(); setConnections(prev => prev.filter(c => c.id !== cn.id)); }}><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="transparent" strokeWidth={10 / zoom} /><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="#94a3b8" strokeWidth={1.5 / zoom} strokeDasharray={`${7 / zoom} ${4 / zoom}`} /><circle cx={(f.x + t.x) / 2} cy={(f.y + t.y) / 2} r={2.5 / zoom} fill="#94a3b8" /></g>); })}
-                  {showCoverage && visibleElements.filter(e => e.radius > 0 && e.angle > 0).map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); const c = el.customColor || eq.color; const sa = (el.rotation - el.angle / 2) * Math.PI / 180, ea = (el.rotation + el.angle / 2) * Math.PI / 180; const x1 = el.x + el.radius * Math.cos(sa), y1 = el.y + el.radius * Math.sin(sa), x2 = el.x + el.radius * Math.cos(ea), y2 = el.y + el.radius * Math.sin(ea); const la = el.angle > 180 ? 1 : 0; const d = el.angle >= 360 ? `M ${el.x + el.radius} ${el.y} A ${el.radius} ${el.radius} 0 1 1 ${el.x - el.radius} ${el.y} A ${el.radius} ${el.radius} 0 1 1 ${el.x + el.radius} ${el.y}` : `M ${el.x} ${el.y} L ${x1} ${y1} A ${el.radius} ${el.radius} 0 ${la} 1 ${x2} ${y2} Z`; return <path key={`c-${el.id}`} d={d} fill={c + "18"} stroke={c + "50"} strokeWidth={1 / zoom} />; })}
+                  {showCoverage && visibleElements.filter(e => e.radius > 0 && e.angle > 0).map(el => {
+                    const eq = EQUIPMENT.find(e => e.type === el.type);
+                    const c = el.customColor || eq.color;
+                    if (el.type === "camera" && el.cameraSpec?.doriDistances) {
+                      const fov = el.cameraSpec.fovH || el.angle;
+                      return (
+                        <g key={`c-${el.id}`}>
+                          {DORI_ZONES.map(zone => {
+                            const r = el.cameraSpec.doriDistances[zone] / scale;
+                            if (!r || r <= 0) return null;
+                            return <path key={zone} d={makeSectorPath(el.x, el.y, r, fov, el.rotation)} fill={DORI_COLORS[zone]} fillOpacity={DORI_OPACITIES[zone]} stroke={DORI_COLORS[zone]} strokeOpacity={0.5} strokeWidth={1 / zoom} />;
+                          })}
+                        </g>
+                      );
+                    }
+                    return <path key={`c-${el.id}`} d={makeSectorPath(el.x, el.y, el.radius, el.angle, el.rotation)} fill={c + "18"} stroke={c + "50"} strokeWidth={1 / zoom} />;
+                  })}
                   {measureLines.map((ml, i) => { const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; const s = selectedMeasure === i; return (<g key={`m-${i}`} style={{ pointerEvents: "auto", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setSelectedMeasure(i); setSelectedId(null); }}><line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke="transparent" strokeWidth={12 / zoom} /><line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke={s ? "#d97706" : "#f59e0b"} strokeWidth={(s ? 2.5 : 1.5) / zoom} strokeDasharray={`${5 / zoom} ${3 / zoom}`} /><circle cx={ml.p1.x} cy={ml.p1.y} r={(s ? 4.5 : 3.5) / zoom} fill={s ? "#d97706" : "#f59e0b"} stroke="#fff" strokeWidth={1.5 / zoom} /><circle cx={ml.p2.x} cy={ml.p2.y} r={(s ? 4.5 : 3.5) / zoom} fill={s ? "#d97706" : "#f59e0b"} stroke="#fff" strokeWidth={1.5 / zoom} /><rect x={mx - 22 / zoom} y={my - 15 / zoom} width={44 / zoom} height={16 / zoom} rx={4 / zoom} fill="#fff" stroke="#e5e7eb" strokeWidth={.5 / zoom} /><text x={mx} y={my - 4 / zoom} textAnchor="middle" fill="#92400e" fontSize={10 / zoom} fontWeight="bold">{(ml.dist * scale).toFixed(1)}m</text></g>); })}
                   {measurePoints.length === 1 && <circle cx={measurePoints[0].x} cy={measurePoints[0].y} r={5 / zoom} fill="#f59e0b" stroke="#fff" strokeWidth={2 / zoom} />}
                   {calibratePoints.length === 1 && <circle cx={calibratePoints[0].x} cy={calibratePoints[0].y} r={6 / zoom} fill="#ea580c" stroke="#fff" strokeWidth={2 / zoom} />}
@@ -682,6 +738,58 @@ export default function NetPlanner() {
               ))}
             </div></div>
             <div><label style={lblS}>Observações</label><textarea value={sel.notes || ""} onChange={e => updateEl(sel.id, { notes: e.target.value })} placeholder="Modelo, specs..." rows={2} style={{ ...inpS, resize: "vertical", fontFamily: "inherit" }} /></div>
+
+            {/* ─── Camera Technical Spec (DORI) ─── */}
+            {sel.type === "camera" && (() => {
+              const spec = sel.cameraSpec || defaultCameraSpec();
+              return (
+                <div style={{ background: T.card, borderRadius: "8px", padding: "10px", border: `1px solid ${T.borderLight}` }}>
+                  <div style={{ ...secT, marginBottom: "8px", color: T.accent }}>Especificações / DORI</div>
+                  {/* Preset */}
+                  <div style={{ marginBottom: "6px" }}>
+                    <label style={lblS}>Preset</label>
+                    <select value={spec.preset || "custom"} onChange={e => updateCameraSpec(sel.id, { preset: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>
+                      {Object.entries(CAMERA_PRESETS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
+                    </select>
+                  </div>
+                  {/* Resolution */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Resolução H</label><input type="number" value={spec.resolutionH} onChange={e => updateCameraSpec(sel.id, { resolutionH: +e.target.value || 1920 })} style={inpS} /></div>
+                    <div><label style={lblS}>Resolução V</label><input type="number" value={spec.resolutionV} onChange={e => updateCameraSpec(sel.id, { resolutionV: +e.target.value || 1080 })} style={inpS} /></div>
+                  </div>
+                  {/* Lens */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Focal (mm)</label><input type="number" step="0.1" value={spec.focalLength} onChange={e => updateCameraSpec(sel.id, { focalLength: +e.target.value || 2.8 })} style={inpS} /></div>
+                    <div><label style={lblS}>Sensor (mm)</label><input type="number" step="0.1" value={spec.sensorWidth} onChange={e => updateCameraSpec(sel.id, { sensorWidth: +e.target.value || 6.4 })} style={inpS} /></div>
+                  </div>
+                  {/* FoV calculated */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 7px", background: T.accentLight, borderRadius: "5px", marginBottom: "7px" }}>
+                    <span style={{ fontSize: "10px", color: T.textMuted, fontWeight: 600 }}>FoV H calculado</span>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: T.accent }}>{(spec.fovH || 0).toFixed(1)}°</span>
+                  </div>
+                  {/* DORI table */}
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: T.textDim, marginBottom: "4px", letterSpacing: "0.5px" }}>DISTÂNCIAS DORI</div>
+                  {DORI_ZONES.map(zone => (
+                    <div key={zone} style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "2px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: DORI_COLORS[zone], flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: "10px", color: T.textMuted }}>{DORI_LABELS[zone]}</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: T.text }}>{spec.doriDistances?.[zone] ? spec.doriDistances[zone].toFixed(1) + "m" : "—"}</span>
+                    </div>
+                  ))}
+                  {/* FPS / Bitrate / Codec */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "4px", marginTop: "8px" }}>
+                    <div><label style={lblS}>FPS</label><input type="number" value={spec.fps} onChange={e => updateCameraSpec(sel.id, { fps: +e.target.value || 15 })} style={inpS} /></div>
+                    <div><label style={lblS}>Bitrate(k)</label><input type="number" value={spec.bitrate} onChange={e => updateCameraSpec(sel.id, { bitrate: +e.target.value || 2048 })} style={inpS} /></div>
+                    <div><label style={lblS}>Codec</label>
+                      <select value={spec.codec} onChange={e => updateCameraSpec(sel.id, { codec: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>
+                        {["H.265", "H.264", "MJPEG"].map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
               <button onClick={() => duplicateEl(sel.id)} style={{ flex: 1, padding: "7px", borderRadius: "6px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: T.white, color: T.text, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px", boxShadow: T.shadow }}><Copy size={11} /> Duplicar</button>
               <button onClick={() => deleteEl(sel.id)} style={{ flex: 1, padding: "7px", borderRadius: "6px", border: `1px solid ${T.danger}30`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: T.dangerLight, color: T.danger, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}><Trash2 size={11} /> Excluir</button>
@@ -712,6 +820,58 @@ export default function NetPlanner() {
         </div>
         <div style={{ display: "flex", gap: "6px" }}><button onClick={() => setPdfDialog(false)} style={{ flex: 1, padding: "8px", borderRadius: "7px", border: `1px solid ${T.border}`, cursor: "pointer", fontSize: "11px", background: T.white, color: T.textMuted }}>Cancelar</button><button onClick={exportPDF} style={{ flex: 1, padding: "8px", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, background: T.accent, color: "#fff", boxShadow: "0 2px 6px rgba(37,99,235,0.3)" }}><FileText size={12} style={{ marginRight: "4px", verticalAlign: "-2px" }} /> Gerar PDF</button></div>
       </div></div>)}
+
+      {/* ═══ CALCULATOR MODAL ═══ */}
+      {calcModal && (() => {
+        const cams = pages.flatMap(p => p.elements).filter(e => e.type === "camera" && e.cameraSpec);
+        const totalBW = cams.reduce((s, e) => s + (e.cameraSpec.bitrate * (e.cameraSpec.fps / 15)) / 1000, 0);
+        const storages = cams.map(e => ({ label: e.label, gb: calcStorage(e.cameraSpec.bitrate, e.cameraSpec.fps, calcHours, calcDays) }));
+        const totalGB = storages.reduce((s, x) => s + x.gb, 0);
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+            <div style={{ background: T.white, borderRadius: "12px", padding: "22px", width: "420px", boxShadow: T.shadowMd, maxHeight: "82vh", overflow: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                <div style={{ fontSize: "15px", fontWeight: 700 }}>Calculadora Bandwidth & Storage</div>
+                <button onClick={() => setCalcModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim }}><X size={16} /></button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                <div><label style={lblS}>Gravação (h/dia)</label><input type="number" value={calcHours} onChange={e => setCalcHours(+e.target.value || 24)} min={1} max={24} style={inpS} /></div>
+                <div><label style={lblS}>Retenção (dias)</label><input type="number" value={calcDays} onChange={e => setCalcDays(+e.target.value || 30)} min={1} style={inpS} /></div>
+              </div>
+              {cams.length === 0 ? (
+                <div style={{ padding: "16px", textAlign: "center", color: T.textMuted, fontSize: "12px", background: T.card, borderRadius: "8px" }}>Adicione câmeras ao projeto para calcular.</div>
+              ) : (<>
+                <div style={{ ...secT, marginBottom: "6px" }}>Por câmera</div>
+                <div style={{ border: `1px solid ${T.borderLight}`, borderRadius: "7px", overflow: "hidden", marginBottom: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "6px", padding: "5px 9px", background: T.card, fontSize: "9px", fontWeight: 700, color: T.textDim }}>
+                    <span>CÂMERA</span><span>BW(Mbps)</span><span>BITRATE</span><span>STORAGE</span>
+                  </div>
+                  {cams.map((e, i) => (
+                    <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "6px", padding: "5px 9px", background: i % 2 ? T.card : T.white, fontSize: "11px", color: T.text }}>
+                      <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.label}</span>
+                      <span style={{ color: T.textMuted }}>{((e.cameraSpec.bitrate * e.cameraSpec.fps / 15) / 1000).toFixed(2)}</span>
+                      <span style={{ color: T.textMuted }}>{e.cameraSpec.bitrate}k</span>
+                      <span style={{ fontWeight: 700, color: T.accent }}>{storages[i].gb.toFixed(1)}GB</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                  {[["Câmeras", `${cams.length} ch`, T.text], ["Bandwidth", `${totalBW.toFixed(2)} Mbps`, "#2563eb"], ["Storage", totalGB >= 1000 ? `${(totalGB / 1000).toFixed(2)} TB` : `${totalGB.toFixed(0)} GB`, T.success]].map(([l, v, col]) => (
+                    <div key={l} style={{ background: T.card, borderRadius: "8px", padding: "10px", textAlign: "center", border: `1px solid ${T.borderLight}` }}>
+                      <div style={{ fontSize: "9px", color: T.textDim, fontWeight: 700, marginBottom: "4px" }}>{l}</div>
+                      <div style={{ fontSize: "14px", fontWeight: 800, color: col }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: "10px", color: T.textDim, background: T.card, borderRadius: "6px", padding: "8px" }}>
+                  Sugestão NVR: <strong style={{ color: T.text }}>{cams.length} canais</strong> · HD mínimo: <strong style={{ color: T.text }}>{totalGB >= 1000 ? `${(totalGB / 1000).toFixed(1)} TB` : `${Math.ceil(totalGB / 500) * 500} GB`}</strong> ({calcDays} dias · {calcHours}h/dia)
+                </div>
+              </>)}
+              <button onClick={() => setCalcModal(false)} style={{ marginTop: "14px", width: "100%", padding: "9px", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, background: T.accent, color: "#fff" }}>Fechar</button>
+            </div>
+          </div>
+        );
+      })()}
 
       <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}input[type=range]{height:4px}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:${T.bg}}::-webkit-scrollbar-thumb{background:${T.border};border-radius:3px}`}</style>
     </div>

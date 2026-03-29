@@ -14,6 +14,14 @@ const EQ_H = 0.22;        // equipment marker center height
 const CONE_H = 4.5;       // camera cone height (ceiling to floor)
 const SIZES = { small: 0.16, medium: 0.22, large: 0.30 };
 
+const DORI_ZONES = ["detection", "observation", "recognition", "identification"];
+const DORI_COLORS_HEX = {
+  detection:      "#86efac",
+  observation:    "#fde68a",
+  recognition:    "#fb923c",
+  identification: "#f87171",
+};
+
 const EQUIPMENT = [
   { type: "camera",  color: "#ef4444", layer: "cftv" },
   { type: "wifi",    color: "#3b82f6", layer: "wifi" },
@@ -266,63 +274,54 @@ function EquipMarker({ el, color, selected, onSelect }) {
 /* ═══════════════════════════════════
    CAMERA / CFTV COVERAGE CONE
 ═══════════════════════════════════ */
-function CameraCone({ el, color }) {
+function DoriConeZone({ radius, angleRad, color, floorOpacity, coneOpacity }) {
+  const sideGeo = useMemo(() => buildSectorGeo(radius, CONE_H, angleRad), [radius, angleRad]);
+  const footGeo = useMemo(() => buildFloorSectorGeo(radius, angleRad), [radius, angleRad]);
+  return (
+    <group>
+      <mesh geometry={sideGeo}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} transparent opacity={coneOpacity} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh geometry={footGeo} position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={floorOpacity} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function CameraCone({ el, color, scale }) {
   const x = el.x * S;
   const z = el.y * S;
-  const radius = (el.radius || 80) * S;
-  const angleRad = ((el.angle || 90) * Math.PI) / 180;
   const rotY = -((el.rotation || 0) * Math.PI) / 180;
+  const angleRad = ((el.cameraSpec?.fovH || el.angle || 90) * Math.PI) / 180;
+  const fallbackRadius = (el.radius || 80) * S;
+  // Always call hooks unconditionally
+  const sideGeo = useMemo(() => buildSectorGeo(fallbackRadius, CONE_H, angleRad), [fallbackRadius, angleRad]);
+  const footGeo = useMemo(() => buildFloorSectorGeo(fallbackRadius, angleRad), [fallbackRadius, angleRad]);
 
-  const sideGeo = useMemo(
-    () => buildSectorGeo(radius, CONE_H, angleRad),
-    [radius, angleRad]
-  );
-  const footGeo = useMemo(
-    () => buildFloorSectorGeo(radius, angleRad),
-    [radius, angleRad]
-  );
+  if (el.cameraSpec?.doriDistances) {
+    const dists = el.cameraSpec.doriDistances;
+    return (
+      <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
+        {DORI_ZONES.map(zone => {
+          const r = (dists[zone] / scale) * S;
+          if (!r || r <= 0) return null;
+          return <DoriConeZone key={zone} radius={r} angleRad={angleRad} color={DORI_COLORS_HEX[zone]} coneOpacity={0.06} floorOpacity={0.28} />;
+        })}
+      </group>
+    );
+  }
 
   return (
     <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
-      {/* Filled volume */}
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.15}
-          transparent
-          opacity={0.07}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} transparent opacity={0.07} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      {/* Wireframe skeleton */}
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.6}
-          transparent
-          opacity={0.28}
-          wireframe
-          depthWrite={false}
-        />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={0.28} wireframe depthWrite={false} />
       </mesh>
-      {/* Floor footprint */}
-      <mesh
-        geometry={footGeo}
-        position={[0, -CONE_H + 0.03, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.5}
-          transparent
-          opacity={0.22}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
+      <mesh geometry={footGeo} position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -634,7 +633,7 @@ export default function Scene3D({
             const eq = EQUIPMENT.find((e) => e.type === el.type);
             const color = el.customColor || eq.color;
             if (el.type === "camera" || el.type === "nvr") {
-              return <CameraCone key={`cov-${el.id}`} el={el} color={color} />;
+              return <CameraCone key={`cov-${el.id}`} el={el} color={color} scale={scale} />;
             }
             return <WifiRings key={`cov-${el.id}`} el={el} color={color} />;
           })}

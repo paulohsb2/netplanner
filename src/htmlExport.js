@@ -437,23 +437,39 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
           const rotY = -(el.rotation || 0) * Math.PI / 180;
 
           if (el.type === 'camera' || el.type === 'nvr') {
-            // 3D cone
-            const coneGeo = buildSectorGeo(radius, CONE_H, angleRad);
             const coneGroup = new THREE.Group();
             coneGroup.position.set(x, CONE_H, z);
             coneGroup.rotation.y = rotY;
 
-            const fill = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
-            const wire = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, transparent: true, opacity: 0.28, wireframe: true, depthWrite: false }));
-            coneGroup.add(fill, wire);
-
-            // Floor footprint
-            const floorGeo = buildFloorSector(radius, angleRad);
-            const floorMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
-            const floorFoot = new THREE.Mesh(floorGeo, floorMat);
-            floorFoot.position.set(0, -CONE_H + 0.03, 0);
-            floorFoot.rotation.x = -Math.PI / 2;
-            coneGroup.add(floorFoot);
+            // DORI zones if spec available
+            if (el.type === 'camera' && el.cameraSpec?.doriDistances) {
+              const dists = el.cameraSpec.doriDistances;
+              const doriColors = { detection: 0x86efac, observation: 0xfde68a, recognition: 0xfb923c, identification: 0xf87171 };
+              const doriZones = ['detection', 'observation', 'recognition', 'identification'];
+              const coneAngleRad = (el.cameraSpec.fovH || el.angle || 90) * Math.PI / 180;
+              doriZones.forEach(zone => {
+                const r = (dists[zone] / SCALE) * S;
+                if (!r || r <= 0) return;
+                const zGeo = buildSectorGeo(r, CONE_H, coneAngleRad);
+                const zColor = doriColors[zone];
+                const fill = new THREE.Mesh(zGeo, new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.2, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false }));
+                const foot = new THREE.Mesh(buildFloorSector(r, coneAngleRad), new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.6, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+                foot.position.set(0, -CONE_H + 0.03, 0);
+                foot.rotation.x = -Math.PI / 2;
+                coneGroup.add(fill, foot);
+              });
+            } else {
+              // Fallback single cone
+              const coneGeo = buildSectorGeo(radius, CONE_H, angleRad);
+              const fill = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
+              const wire = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, transparent: true, opacity: 0.28, wireframe: true, depthWrite: false }));
+              coneGroup.add(fill, wire);
+              const floorGeo = buildFloorSector(radius, angleRad);
+              const floorFoot = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+              floorFoot.position.set(0, -CONE_H + 0.03, 0);
+              floorFoot.rotation.x = -Math.PI / 2;
+              coneGroup.add(floorFoot);
+            }
 
             pageGroup.add(coneGroup);
           } else {
