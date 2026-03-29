@@ -65,10 +65,35 @@ function buildFloorSectorGeo(radius, angleRad, segs = 48) {
   shape.moveTo(0, 0);
   for (let i = 0; i <= steps; i++) {
     const a = -angleRad / 2 + (angleRad * i / steps);
-    const fn = i === 0 ? "lineTo" : "lineTo";
-    shape[fn](radius * Math.cos(a), radius * Math.sin(a));
+    shape.lineTo(radius * Math.cos(a), radius * Math.sin(a));
   }
   shape.lineTo(0, 0);
+  return new THREE.ShapeGeometry(shape, steps);
+}
+
+/* ─── annular sector (ring between innerR and outerR) ─── */
+function buildRingSectorGeo(innerR, outerR, angleRad, segs = 48) {
+  if (angleRad >= Math.PI * 2 - 0.01) {
+    const shape = new THREE.Shape();
+    shape.absarc(0, 0, outerR, 0, Math.PI * 2, false);
+    const hole = new THREE.Path();
+    hole.absarc(0, 0, innerR, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+    return new THREE.ShapeGeometry(shape, segs);
+  }
+  const steps = Math.max(6, Math.round(segs * angleRad / (Math.PI * 2)));
+  const halfA = angleRad / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(outerR * Math.cos(-halfA), outerR * Math.sin(-halfA));
+  for (let i = 0; i <= steps; i++) {
+    const a = -halfA + (angleRad * i / steps);
+    shape.lineTo(outerR * Math.cos(a), outerR * Math.sin(a));
+  }
+  for (let i = steps; i >= 0; i--) {
+    const a = -halfA + (angleRad * i / steps);
+    shape.lineTo(innerR * Math.cos(a), innerR * Math.sin(a));
+  }
+  shape.closePath();
   return new THREE.ShapeGeometry(shape, steps);
 }
 
@@ -274,17 +299,38 @@ function EquipMarker({ el, color, selected, onSelect }) {
 /* ═══════════════════════════════════
    CAMERA / CFTV COVERAGE CONE
 ═══════════════════════════════════ */
-function DoriConeZone({ radius, angleRad, color, floorOpacity, coneOpacity }) {
-  const sideGeo = useMemo(() => buildSectorGeo(radius, CONE_H, angleRad), [radius, angleRad]);
-  const footGeo = useMemo(() => buildFloorSectorGeo(radius, angleRad), [radius, angleRad]);
+/* Volume cone for one DORI zone (no floor — rendered separately) */
+function DoriConeZone({ radius, angleRad, color }) {
+  const geo = useMemo(() => buildSectorGeo(radius, CONE_H, angleRad), [radius, angleRad]);
   return (
-    <group>
-      <mesh geometry={sideGeo}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} transparent opacity={coneOpacity} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh geometry={footGeo} position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={floorOpacity} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
+    <mesh geometry={geo}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
+/* Annular ring sectors on the floor for each DORI zone */
+function DoriFloorRings({ detR, obsR, recR, idR, fovRad }) {
+  const rings = useMemo(() => [
+    { color: DORI_COLORS_HEX.detection,      outer: detR, inner: obsR },
+    { color: DORI_COLORS_HEX.observation,    outer: obsR, inner: recR },
+    { color: DORI_COLORS_HEX.recognition,    outer: recR, inner: idR  },
+    { color: DORI_COLORS_HEX.identification, outer: idR,  inner: 0    },
+  ], [detR, obsR, recR, idR]);
+
+  return (
+    <group position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {rings.map(({ color, outer, inner }) => {
+        if (outer <= 0) return null;
+        const geo = inner > 0.001
+          ? buildRingSectorGeo(inner, outer, fovRad)
+          : buildFloorSectorGeo(outer, fovRad);
+        return (
+          <mesh key={color} geometry={geo}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} transparent opacity={0.72} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
@@ -293,21 +339,32 @@ function CameraCone({ el, color, scale }) {
   const x = el.x * S;
   const z = el.y * S;
   const rotY = -((el.rotation || 0) * Math.PI) / 180;
-  const angleRad = ((el.cameraSpec?.fovH || el.angle || 90) * Math.PI) / 180;
-  const fallbackRadius = (el.radius || 80) * S;
-  // Always call hooks unconditionally
-  const sideGeo = useMemo(() => buildSectorGeo(fallbackRadius, CONE_H, angleRad), [fallbackRadius, angleRad]);
-  const footGeo = useMemo(() => buildFloorSectorGeo(fallbackRadius, angleRad), [fallbackRadius, angleRad]);
+  const fovRad = ((el.cameraSpec?.fovH || el.angle || 90) * Math.PI) / 180;
+  // Detection zone = el.radius pixels → world units
+  const detR = (el.radius || 80) * S;
+  // Always declare hooks unconditionally
+  const sideGeo = useMemo(() => buildSectorGeo(detR, CONE_H, fovRad), [detR, fovRad]);
+  const footGeo = useMemo(() => buildFloorSectorGeo(detR, fovRad), [detR, fovRad]);
 
   if (el.cameraSpec?.doriDistances) {
     const dists = el.cameraSpec.doriDistances;
+    const detDist = dists.detection;
+    // Scale zone radii proportionally relative to el.radius (user-controlled visual size)
+    const zR = (zone) => detR * (dists[zone] / detDist);
     return (
       <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
-        {DORI_ZONES.map(zone => {
-          const r = (dists[zone] / scale) * S;
-          if (!r || r <= 0) return null;
-          return <DoriConeZone key={zone} radius={r} angleRad={angleRad} color={DORI_COLORS_HEX[zone]} coneOpacity={0.06} floorOpacity={0.28} />;
-        })}
+        {/* Volume cones — outermost to innermost so inner colours blend nicely */}
+        {DORI_ZONES.map(zone => (
+          <DoriConeZone key={zone} radius={zR(zone)} angleRad={fovRad} color={DORI_COLORS_HEX[zone]} />
+        ))}
+        {/* Floor ring sectors — clearly distinct colour bands */}
+        <DoriFloorRings
+          detR={zR("detection")}
+          obsR={zR("observation")}
+          recR={zR("recognition")}
+          idR={zR("identification")}
+          fovRad={fovRad}
+        />
       </group>
     );
   }
@@ -315,13 +372,13 @@ function CameraCone({ el, color, scale }) {
   return (
     <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} transparent opacity={0.07} side={THREE.DoubleSide} depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={0.28} wireframe depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} transparent opacity={0.35} wireframe depthWrite={false} />
       </mesh>
       <mesh geometry={footGeo} position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -339,7 +396,7 @@ function WifiRings({ el, color }) {
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     ringsRef.current.forEach((m, i) => {
-      if (m) m.material.opacity = 0.15 + 0.12 * Math.sin(t * 1.8 + i * 1.2);
+      if (m) m.material.opacity = 0.45 + 0.15 * Math.sin(t * 1.8 + i * 1.2);
     });
   });
 
@@ -353,9 +410,9 @@ function WifiRings({ el, color }) {
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.3}
+          emissiveIntensity={0.5}
           transparent
-          opacity={0.08}
+          opacity={0.22}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -367,14 +424,14 @@ function WifiRings({ el, color }) {
           ref={(m) => (ringsRef.current[i] = m)}
         >
           <ringGeometry
-            args={[radius * r - 0.04, radius * r, 72]}
+            args={[radius * r - 0.05, radius * r, 72]}
           />
           <meshStandardMaterial
             color={color}
             emissive={color}
-            emissiveIntensity={0.9}
+            emissiveIntensity={1.0}
             transparent
-            opacity={0.3}
+            opacity={0.55}
             side={THREE.DoubleSide}
             depthWrite={false}
           />

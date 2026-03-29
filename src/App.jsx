@@ -248,7 +248,7 @@ export default function NetPlanner() {
       const { fovH, distances } = calcAllDori(newSpec);
       newSpec.fovH = fovH;
       newSpec.doriDistances = distances;
-      return { ...el, cameraSpec: newSpec, angle: fovH, radius: distances.detection / scale };
+      return { ...el, cameraSpec: newSpec, angle: fovH };
     }));
   };
 
@@ -672,12 +672,15 @@ export default function NetPlanner() {
                     const c = el.customColor || eq.color;
                     if (el.type === "camera" && el.cameraSpec?.doriDistances) {
                       const fov = el.cameraSpec.fovH || el.angle;
+                      const dists = el.cameraSpec.doriDistances;
+                      const detDist = dists.detection;
                       return (
                         <g key={`c-${el.id}`}>
                           {DORI_ZONES.map(zone => {
-                            const r = el.cameraSpec.doriDistances[zone] / scale;
+                            // Scale proportionally: detection zone = el.radius pixels
+                            const r = el.radius * (dists[zone] / detDist);
                             if (!r || r <= 0) return null;
-                            return <path key={zone} d={makeSectorPath(el.x, el.y, r, fov, el.rotation)} fill={DORI_COLORS[zone]} fillOpacity={DORI_OPACITIES[zone]} stroke={DORI_COLORS[zone]} strokeOpacity={0.5} strokeWidth={1 / zoom} />;
+                            return <path key={zone} d={makeSectorPath(el.x, el.y, r, fov, el.rotation)} fill={DORI_COLORS[zone]} fillOpacity={DORI_OPACITIES[zone]} stroke={DORI_COLORS[zone]} strokeOpacity={0.65} strokeWidth={1.5 / zoom} />;
                           })}
                         </g>
                       );

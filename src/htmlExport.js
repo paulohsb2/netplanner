@@ -266,6 +266,32 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       return new THREE.ShapeGeometry(shape, steps);
     }
 
+    function buildRingSector(innerR, outerR, angleRad, segs) {
+      segs = segs || 48;
+      if (angleRad >= Math.PI * 2 - 0.01) {
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, outerR, 0, Math.PI * 2, false);
+        const hole = new THREE.Path();
+        hole.absarc(0, 0, innerR, 0, Math.PI * 2, true);
+        shape.holes.push(hole);
+        return new THREE.ShapeGeometry(shape, segs);
+      }
+      const steps = Math.max(6, Math.round(segs * angleRad / (Math.PI * 2)));
+      const halfA = angleRad / 2;
+      const shape = new THREE.Shape();
+      shape.moveTo(outerR * Math.cos(-halfA), outerR * Math.sin(-halfA));
+      for (let i = 0; i <= steps; i++) {
+        const a = -halfA + (angleRad * i / steps);
+        shape.lineTo(outerR * Math.cos(a), outerR * Math.sin(a));
+      }
+      for (let i = steps; i >= 0; i--) {
+        const a = -halfA + (angleRad * i / steps);
+        shape.lineTo(innerR * Math.cos(a), innerR * Math.sin(a));
+      }
+      shape.closePath();
+      return new THREE.ShapeGeometry(shape, steps);
+    }
+
     /* ── Labels (CSS2D-style via DOM overlay) ── */
     const labelContainer = document.createElement('div');
     labelContainer.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50';
@@ -444,28 +470,49 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
             // DORI zones if spec available
             if (el.type === 'camera' && el.cameraSpec?.doriDistances) {
               const dists = el.cameraSpec.doriDistances;
-              const doriColors = { detection: 0x86efac, observation: 0xfde68a, recognition: 0xfb923c, identification: 0xf87171 };
+              const doriColors = { detection: 0x4ade80, observation: 0xfacc15, recognition: 0xf97316, identification: 0xf43f5e };
               const doriZones = ['detection', 'observation', 'recognition', 'identification'];
               const coneAngleRad = (el.cameraSpec.fovH || el.angle || 90) * Math.PI / 180;
+              // Proportional: detection zone = el.radius pixels in world units
+              const detWorldR = el.radius * S;
+              const detDist = dists.detection;
+              const zR = (zone) => detWorldR * (dists[zone] / detDist);
+
+              // Volume cones (transparent)
               doriZones.forEach(zone => {
-                const r = (dists[zone] / SCALE) * S;
+                const r = zR(zone);
                 if (!r || r <= 0) return;
-                const zGeo = buildSectorGeo(r, CONE_H, coneAngleRad);
                 const zColor = doriColors[zone];
-                const fill = new THREE.Mesh(zGeo, new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.2, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false }));
-                const foot = new THREE.Mesh(buildFloorSector(r, coneAngleRad), new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.6, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
-                foot.position.set(0, -CONE_H + 0.03, 0);
-                foot.rotation.x = -Math.PI / 2;
-                coneGroup.add(fill, foot);
+                coneGroup.add(new THREE.Mesh(buildSectorGeo(r, CONE_H, coneAngleRad),
+                  new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.35, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })));
               });
+
+              // Floor ring sectors — clear distinct colour bands
+              const ringDefs = [
+                { zone: 'detection',      outer: zR('detection'),      inner: zR('observation') },
+                { zone: 'observation',    outer: zR('observation'),    inner: zR('recognition') },
+                { zone: 'recognition',    outer: zR('recognition'),    inner: zR('identification') },
+                { zone: 'identification', outer: zR('identification'), inner: 0 },
+              ];
+              const floorGroup = new THREE.Group();
+              floorGroup.position.set(0, -CONE_H + 0.03, 0);
+              floorGroup.rotation.x = -Math.PI / 2;
+              ringDefs.forEach(({ zone, outer, inner }) => {
+                if (outer <= 0) return;
+                const geo = inner > 0.001 ? buildRingSector(inner, outer, coneAngleRad) : buildFloorSector(outer, coneAngleRad);
+                const zColor = doriColors[zone];
+                floorGroup.add(new THREE.Mesh(geo,
+                  new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.65, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false })));
+              });
+              coneGroup.add(floorGroup);
             } else {
               // Fallback single cone
               const coneGeo = buildSectorGeo(radius, CONE_H, angleRad);
-              const fill = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
-              const wire = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, transparent: true, opacity: 0.28, wireframe: true, depthWrite: false }));
+              const fill = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.2, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+              const wire = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, transparent: true, opacity: 0.35, wireframe: true, depthWrite: false }));
               coneGroup.add(fill, wire);
-              const floorGeo = buildFloorSector(radius, angleRad);
-              const floorFoot = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+              const floorFoot = new THREE.Mesh(buildFloorSector(radius, angleRad),
+                new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
               floorFoot.position.set(0, -CONE_H + 0.03, 0);
               floorFoot.rotation.x = -Math.PI / 2;
               coneGroup.add(floorFoot);
@@ -473,17 +520,17 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
 
             pageGroup.add(coneGroup);
           } else {
-            // WiFi rings
+            // WiFi / router rings
             const ringGroup = new THREE.Group();
             ringGroup.position.set(x, 0.02, z);
             ringGroup.rotation.x = -Math.PI / 2;
 
-            const diskMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false });
+            const diskMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, transparent: true, opacity: 0.20, side: THREE.DoubleSide, depthWrite: false });
             ringGroup.add(new THREE.Mesh(new THREE.CircleGeometry(radius, 64), diskMat));
 
             [1, 0.66, 0.33].forEach(r => {
-              const rMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.9, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
-              ringGroup.add(new THREE.Mesh(new THREE.RingGeometry(radius * r - 0.04, radius * r, 72), rMat));
+              const rMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.0, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+              ringGroup.add(new THREE.Mesh(new THREE.RingGeometry(radius * r - 0.05, radius * r, 72), rMat));
             });
 
             pageGroup.add(ringGroup);
