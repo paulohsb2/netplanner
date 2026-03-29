@@ -593,7 +593,7 @@ export default function NetPlanner() {
         )}
 
         {view3D && (
-          <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#060c18" }}>
+          <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#e8ecf1" }}>
             <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#60a5fa", fontSize: "14px" }}>Carregando 3D...</div>}>
               <Scene3D
                 page={page}

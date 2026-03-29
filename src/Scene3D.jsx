@@ -81,10 +81,10 @@ function FloorPlane({ bgImage, width, height }) {
 
   return (
     <group>
-      {/* Dark base plate — extends beyond image */}
+      {/* Base plate — extends beyond image */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[width / 2, -0.02, height / 2]}>
         <planeGeometry args={[width * 1.6, height * 1.6]} />
-        <meshStandardMaterial color="#0d1117" roughness={1} />
+        <meshStandardMaterial color="#d1d9e6" roughness={1} />
       </mesh>
 
       {/* Floor plan image */}
@@ -107,7 +107,7 @@ function FloorPlane({ bgImage, width, height }) {
           <edgesGeometry
             args={[new THREE.PlaneGeometry(width, height)]}
           />
-          <lineBasicMaterial color="#334155" transparent opacity={0.5} />
+          <lineBasicMaterial color="#94a3b8" transparent opacity={0.6} />
         </lineSegments>
       )}
     </group>
@@ -517,32 +517,26 @@ export default function Scene3D({
 
   return (
     <Canvas
-      style={{ width: "100%", height: "100%", background: "#060c18" }}
+      style={{ width: "100%", height: "100%", background: "#e8ecf1" }}
       camera={{ position: camPos, fov: 48, near: 0.01, far: 1000 }}
-      shadows
+      shadows={{ type: THREE.PCFShadowMap }}
     >
-      <color attach="background" args={["#060c18"]} />
-      <fog attach="fog" args={["#060c18", bgW * 4, bgW * 10]} />
+      <color attach="background" args={["#e8ecf1"]} />
+      <fog attach="fog" args={["#e8ecf1", bgW * 5, bgW * 14]} />
 
       {/* Lighting */}
-      <ambientLight intensity={0.4} color="#c8d8f0" />
+      <ambientLight intensity={1.2} color="#ffffff" />
       <directionalLight
-        position={[bgW, bgW * 1.2, bgH]}
-        intensity={0.6}
+        position={[bgW, bgW * 1.5, bgH]}
+        intensity={1.0}
         color="#ffffff"
         castShadow
       />
       <pointLight
         position={[bgW / 2, bgW * 0.4, bgH / 2]}
-        intensity={0.5}
-        color="#3b82f6"
-        distance={bgW * 3}
-      />
-      <pointLight
-        position={[0, bgW * 0.3, 0]}
         intensity={0.3}
-        color="#8b5cf6"
-        distance={bgW * 2}
+        color="#dbeafe"
+        distance={bgW * 3}
       />
 
       {/* Controls */}
@@ -563,8 +557,8 @@ export default function Scene3D({
         args={[
           Math.max(bgW, bgH) * 2,
           28,
-          "#1a2744",
-          "#0f1a2e",
+          "#b0baca",
+          "#c8d0dc",
         ]}
         position={[bgW / 2, -0.005, bgH / 2]}
       />
