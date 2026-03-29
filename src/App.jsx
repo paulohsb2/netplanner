@@ -8,7 +8,7 @@ import {
   Link2, Image, Building2, Box
 } from "lucide-react";
 import { generateViewerHTML } from "./htmlExport";
-import { calcAllDori, CAMERA_PRESETS, DORI_ZONES, DORI_COLORS, DORI_LABELS, DORI_OPACITIES, defaultCameraSpec, calcStorage } from "./doriCalc";
+import { calcAllDori, CAMERA_PRESETS, PRESET_GROUPS, DORI_ZONES, DORI_COLORS, DORI_LABELS, DORI_OPACITIES, defaultCameraSpec, calcStorage } from "./doriCalc";
 const Scene3D = lazy(() => import("./Scene3D"));
 
 /* ═══ CONSTANTS ═══ */
@@ -264,7 +264,7 @@ export default function NetPlanner() {
     const c = document.createElement("canvas"); c.width = pg.bgNatural.w; c.height = pg.bgNatural.h; const ctx = c.getContext("2d");
     const draw = () => {
       pg.connections.forEach(cn => { const f = pg.elements.find(e => e.id === cn.from), t = pg.elements.find(e => e.id === cn.to); if (!f || !t) return; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(t.x, t.y); ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); });
-      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq || el.radius <= 0 || el.angle <= 0) return; const col = el.customColor || eq.color; ctx.save(); ctx.translate(el.x, el.y); ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180); ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180); ctx.closePath(); ctx.fillStyle = col + "25"; ctx.strokeStyle = col + "70"; ctx.lineWidth = 1.2; ctx.fill(); ctx.stroke(); ctx.restore(); });
+      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq || el.radius <= 0 || el.angle <= 0) return; const col = el.customColor || eq.color; ctx.save(); ctx.translate(el.x, el.y); ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180); ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180); ctx.closePath(); ctx.fillStyle = col + "45"; ctx.strokeStyle = col + "99"; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke(); ctx.restore(); });
       pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const r = 12; ctx.beginPath(); ctx.arc(el.x, el.y, r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); drawEquipIconCanvas(ctx, el.type, el.iconVariant || 0, el.x, el.y, 16, "#fff"); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + r + 4, el.y + 4); ctx.fillText(el.label, el.x + r + 4, el.y + 4); });
       pg.measureLines.forEach(ml => { ctx.beginPath(); ctx.moveTo(ml.p1.x, ml.p1.y); ctx.lineTo(ml.p2.x, ml.p2.y); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.8; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]); const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#92400e"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); ctx.fillText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); });
       resolve(c);
@@ -682,7 +682,7 @@ export default function NetPlanner() {
                         </g>
                       );
                     }
-                    return <path key={`c-${el.id}`} d={makeSectorPath(el.x, el.y, el.radius, el.angle, el.rotation)} fill={c + "18"} stroke={c + "50"} strokeWidth={1 / zoom} />;
+                    return <path key={`c-${el.id}`} d={makeSectorPath(el.x, el.y, el.radius, el.angle, el.rotation)} fill={c + "40"} stroke={c + "99"} strokeWidth={1.5 / zoom} />;
                   })}
                   {measureLines.map((ml, i) => { const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; const s = selectedMeasure === i; return (<g key={`m-${i}`} style={{ pointerEvents: "auto", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setSelectedMeasure(i); setSelectedId(null); }}><line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke="transparent" strokeWidth={12 / zoom} /><line x1={ml.p1.x} y1={ml.p1.y} x2={ml.p2.x} y2={ml.p2.y} stroke={s ? "#d97706" : "#f59e0b"} strokeWidth={(s ? 2.5 : 1.5) / zoom} strokeDasharray={`${5 / zoom} ${3 / zoom}`} /><circle cx={ml.p1.x} cy={ml.p1.y} r={(s ? 4.5 : 3.5) / zoom} fill={s ? "#d97706" : "#f59e0b"} stroke="#fff" strokeWidth={1.5 / zoom} /><circle cx={ml.p2.x} cy={ml.p2.y} r={(s ? 4.5 : 3.5) / zoom} fill={s ? "#d97706" : "#f59e0b"} stroke="#fff" strokeWidth={1.5 / zoom} /><rect x={mx - 22 / zoom} y={my - 15 / zoom} width={44 / zoom} height={16 / zoom} rx={4 / zoom} fill="#fff" stroke="#e5e7eb" strokeWidth={.5 / zoom} /><text x={mx} y={my - 4 / zoom} textAnchor="middle" fill="#92400e" fontSize={10 / zoom} fontWeight="bold">{(ml.dist * scale).toFixed(1)}m</text></g>); })}
                   {measurePoints.length === 1 && <circle cx={measurePoints[0].x} cy={measurePoints[0].y} r={5 / zoom} fill="#f59e0b" stroke="#fff" strokeWidth={2 / zoom} />}
@@ -749,7 +749,11 @@ export default function NetPlanner() {
                   <div style={{ marginBottom: "6px" }}>
                     <label style={lblS}>Preset</label>
                     <select value={spec.preset || "custom"} onChange={e => updateCameraSpec(sel.id, { preset: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>
-                      {Object.entries(CAMERA_PRESETS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
+                      {PRESET_GROUPS.map(g => (
+                        <optgroup key={g.label} label={g.label}>
+                          {g.keys.map(k => <option key={k} value={k}>{CAMERA_PRESETS[k]?.label}</option>)}
+                        </optgroup>
+                      ))}
                     </select>
                   </div>
                   {/* Resolution */}
