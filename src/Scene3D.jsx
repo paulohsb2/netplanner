@@ -12,7 +12,7 @@ import { useRef, useMemo, useEffect, useState } from "react";
 const S = 0.01;           // 1 pixel = 0.01 world units
 const EQ_H = 0.22;        // equipment marker center height
 const CONE_H = 4.5;       // camera cone height (ceiling to floor)
-const SIZES = { small: 0.16, medium: 0.22, large: 0.30 };
+const SIZES = { small: 0.25, medium: 0.36, large: 0.50 };
 
 const DORI_ZONES = ["detection", "observation", "recognition", "identification"];
 const DORI_COLORS_HEX = {
@@ -148,78 +148,270 @@ function FloorPlane({ bgImage, width, height }) {
 }
 
 /* ═══════════════════════════════════
-   EQUIPMENT 3D BODY
+   EQUIPMENT 3D BODY — realistic miniatures
 ═══════════════════════════════════ */
 function EquipBody3D({ type, sz, color, rotY }) {
-  const mat = <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />;
   switch (type) {
+
+    /* ── Dome Camera ── */
     case "camera":
-      // Cilindro corpo + lente projetada na direção de rotação
       return (
         <group rotation={[0, rotY, 0]}>
-          <mesh userData={{ main: true }} position={[0, sz * 0.35, 0]} castShadow>
-            <cylinderGeometry args={[sz * 0.9, sz * 0.9, sz * 0.7, 20]} />
-            {mat}
+          {/* Circular base plate */}
+          <mesh userData={{ main: true }} position={[0, sz * 0.05, 0]} castShadow>
+            <cylinderGeometry args={[sz * 1.05, sz * 1.05, sz * 0.1, 36]} />
+            <meshStandardMaterial color="#1a2235" emissive="#1a2235" emissiveIntensity={0.12} metalness={0.45} roughness={0.5} />
           </mesh>
-          {/* Lente frontal */}
-          <mesh position={[0, sz * 0.35, sz * 0.95]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-            <cylinderGeometry args={[sz * 0.38, sz * 0.44, sz * 0.55, 14]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.2} />
+          {/* Mounting collar */}
+          <mesh position={[0, sz * 0.17, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.82, sz * 0.97, sz * 0.24, 32]} />
+            <meshStandardMaterial color="#2d3f52" metalness={0.55} roughness={0.38} />
           </mesh>
+          {/* Dome glass (hemisphere) */}
+          <mesh position={[0, sz * 0.24, 0]}>
+            <sphereGeometry args={[sz * 0.8, 36, 18, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#0b1828" transparent opacity={0.78} metalness={0.08} roughness={0.04} />
+          </mesh>
+          {/* Lens iris — offset toward coverage dir (X+) */}
+          <mesh position={[sz * 0.3, sz * 0.3, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[sz * 0.24, sz * 0.27, sz * 0.1, 24]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} metalness={0.3} roughness={0.2} />
+          </mesh>
+          {/* Lens pupil */}
+          <mesh position={[sz * 0.36, sz * 0.3, 0]} rotation={[0, 0, -Math.PI / 2]}>
+            <cylinderGeometry args={[sz * 0.13, sz * 0.13, sz * 0.04, 16]} />
+            <meshStandardMaterial color="#000010" emissive="#001133" emissiveIntensity={0.5} />
+          </mesh>
+          {/* Mounting screw indicators (tiny spheres) */}
+          {[0, 1, 2, 3].map(i => {
+            const a = (i * Math.PI) / 2;
+            return (
+              <mesh key={i} position={[Math.cos(a) * sz * 0.92, sz * 0.06, Math.sin(a) * sz * 0.92]}>
+                <sphereGeometry args={[sz * 0.06, 8, 8]} />
+                <meshStandardMaterial color="#0a1018" metalness={0.7} roughness={0.3} />
+              </mesh>
+            );
+          })}
         </group>
       );
+
+    /* ── UniFi-style AP ── */
     case "wifi":
-      // Disco plano (AP de teto)
       return (
         <group>
-          <mesh userData={{ main: true }} position={[0, sz * 0.18, 0]} castShadow>
-            <cylinderGeometry args={[sz * 1.3, sz * 1.3, sz * 0.35, 28]} />
-            {mat}
+          {/* Shadow/depth disc on ground */}
+          <mesh position={[0, sz * 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[sz * 1.55, 48]} />
+            <meshStandardMaterial color="#0a1020" transparent opacity={0.18} depthWrite={false} />
           </mesh>
-          {/* Botão central */}
-          <mesh position={[0, sz * 0.38, 0]} castShadow>
-            <cylinderGeometry args={[sz * 0.3, sz * 0.3, sz * 0.12, 16]} />
-            <meshStandardMaterial color="#fff" metalness={0.2} roughness={0.6} />
+          {/* Main white disc body */}
+          <mesh userData={{ main: true }} position={[0, sz * 0.14, 0]} castShadow>
+            <cylinderGeometry args={[sz * 1.55, sz * 1.45, sz * 0.28, 48]} />
+            <meshStandardMaterial color="#f1f5f9" emissive="#f1f5f9" emissiveIntensity={0.08} metalness={0.1} roughness={0.25} />
           </mesh>
+          {/* Groove rings (open cylinders) */}
+          <mesh position={[0, sz * 0.27, 0]}>
+            <cylinderGeometry args={[sz * 1.22, sz * 1.22, sz * 0.04, 48, 1, true]} />
+            <meshStandardMaterial color="#94a3b8" side={THREE.DoubleSide} metalness={0.2} roughness={0.6} />
+          </mesh>
+          <mesh position={[0, sz * 0.27, 0]}>
+            <cylinderGeometry args={[sz * 0.88, sz * 0.88, sz * 0.04, 48, 1, true]} />
+            <meshStandardMaterial color="#64748b" side={THREE.DoubleSide} metalness={0.2} roughness={0.6} />
+          </mesh>
+          {/* Center hub */}
+          <mesh position={[0, sz * 0.3, 0]} castShadow>
+            <cylinderGeometry args={[sz * 0.46, sz * 0.46, sz * 0.1, 28]} />
+            <meshStandardMaterial color="#334155" metalness={0.4} roughness={0.4} />
+          </mesh>
+          {/* LED ring */}
+          <mesh position={[0, sz * 0.35, 0]}>
+            <cylinderGeometry args={[sz * 0.28, sz * 0.28, sz * 0.04, 28, 1, true]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.1} side={THREE.DoubleSide} transparent opacity={0.9} />
+          </mesh>
+          {/* LED dots at 120° */}
+          {[0, 1, 2].map(i => {
+            const a = (i * Math.PI * 2) / 3;
+            return (
+              <mesh key={i} position={[Math.cos(a) * sz * 1.35, sz * 0.29, Math.sin(a) * sz * 1.35]}>
+                <sphereGeometry args={[sz * 0.07, 8, 8]} />
+                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.3} />
+              </mesh>
+            );
+          })}
         </group>
       );
+
+    /* ── Network Switch (1U rack) ── */
     case "switch":
-      // Caixa rack plana
-      return (
-        <mesh userData={{ main: true }} position={[0, sz * 0.2, 0]} castShadow>
-          <boxGeometry args={[sz * 2.6, sz * 0.4, sz * 1.2]} />
-          {mat}
-        </mesh>
-      );
-    case "router":
-      // Caixa + 2 antenas verticais
       return (
         <group>
-          <mesh userData={{ main: true }} position={[0, sz * 0.45, 0]} castShadow>
-            <boxGeometry args={[sz * 1.9, sz * 0.9, sz * 1.3]} />
-            {mat}
+          {/* Chassis */}
+          <mesh userData={{ main: true }} position={[0, sz * 0.24, 0]} castShadow>
+            <boxGeometry args={[sz * 3.1, sz * 0.48, sz * 1.5]} />
+            <meshStandardMaterial color="#1e293b" emissive="#1e293b" emissiveIntensity={0.1} metalness={0.4} roughness={0.5} />
           </mesh>
-          {[-0.55, 0.55].map((ox, i) => (
-            <mesh key={i} position={[sz * ox, sz * 1.6, sz * -0.42]} castShadow>
-              <cylinderGeometry args={[sz * 0.09, sz * 0.09, sz * 1.5, 8]} />
-              <meshStandardMaterial color="#334155" roughness={0.5} />
+          {/* Top lighter panel */}
+          <mesh position={[0, sz * 0.49, 0]}>
+            <boxGeometry args={[sz * 3.05, sz * 0.02, sz * 1.45]} />
+            <meshStandardMaterial color="#263548" metalness={0.3} roughness={0.6} />
+          </mesh>
+          {/* Port row 1 — colored indicators */}
+          {[...Array(8)].map((_, i) => (
+            <mesh key={`p1${i}`} position={[(i - 3.5) * sz * 0.34, sz * 0.44, sz * 0.4]}>
+              <boxGeometry args={[sz * 0.22, sz * 0.14, sz * 0.06]} />
+              <meshStandardMaterial
+                color={i < 6 ? "#22c55e" : "#374151"}
+                emissive={i < 6 ? "#22c55e" : "#000"}
+                emissiveIntensity={i < 6 ? 0.85 : 0}
+              />
+            </mesh>
+          ))}
+          {/* Port row 2 */}
+          {[...Array(8)].map((_, i) => (
+            <mesh key={`p2${i}`} position={[(i - 3.5) * sz * 0.34, sz * 0.44, sz * 0.62]}>
+              <boxGeometry args={[sz * 0.22, sz * 0.14, sz * 0.06]} />
+              <meshStandardMaterial
+                color={i < 4 ? "#22c55e" : "#374151"}
+                emissive={i < 4 ? "#22c55e" : "#000"}
+                emissiveIntensity={i < 4 ? 0.85 : 0}
+              />
+            </mesh>
+          ))}
+          {/* SFP uplink — amber */}
+          <mesh position={[sz * 1.2, sz * 0.44, sz * 0.51]}>
+            <boxGeometry args={[sz * 0.28, sz * 0.18, sz * 0.28]} />
+            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.55} />
+          </mesh>
+          {/* Status LEDs */}
+          {[[0.9, "#22c55e"], [0.62, "#22c55e"], [0.34, "#3b82f6"]].map(([ox, c], i) => (
+            <mesh key={i} position={[sz * ox, sz * 0.52, sz * -0.6]}>
+              <sphereGeometry args={[sz * 0.08, 8, 8]} />
+              <meshStandardMaterial color={c} emissive={c} emissiveIntensity={1.0} />
             </mesh>
           ))}
         </group>
       );
-    case "nvr":
-      // Caixa DVR/NVR
+
+    /* ── Router / Gateway ── */
+    case "router":
       return (
-        <mesh userData={{ main: true }} position={[0, sz * 0.6, 0]} castShadow>
-          <boxGeometry args={[sz * 2.4, sz * 1.2, sz * 1.5]} />
-          {mat}
-        </mesh>
+        <group rotation={[0, rotY, 0]}>
+          {/* Main body */}
+          <mesh userData={{ main: true }} position={[0, sz * 0.52, 0]} castShadow>
+            <boxGeometry args={[sz * 2.1, sz * 1.04, sz * 1.5]} />
+            <meshStandardMaterial color="#2d1b69" emissive="#2d1b69" emissiveIntensity={0.12} metalness={0.38} roughness={0.5} />
+          </mesh>
+          {/* Top panel */}
+          <mesh position={[0, sz * 1.05, 0]}>
+            <boxGeometry args={[sz * 2.05, sz * 0.03, sz * 1.45]} />
+            <meshStandardMaterial color="#3b1f80" metalness={0.3} roughness={0.6} />
+          </mesh>
+          {/* Left antenna */}
+          <group position={[sz * -0.72, 0, sz * -0.55]}>
+            <mesh position={[0, sz * 0.62, 0]}>
+              <cylinderGeometry args={[sz * 0.13, sz * 0.16, sz * 0.22, 12]} />
+              <meshStandardMaterial color="#1e1042" metalness={0.5} roughness={0.4} />
+            </mesh>
+            <mesh position={[0, sz * 1.62, 0]} castShadow>
+              <cylinderGeometry args={[sz * 0.075, sz * 0.1, sz * 1.8, 10]} />
+              <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.3} />
+            </mesh>
+            <mesh position={[0, sz * 2.55, 0]}>
+              <sphereGeometry args={[sz * 0.11, 10, 10]} />
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+            </mesh>
+          </group>
+          {/* Right antenna */}
+          <group position={[sz * 0.72, 0, sz * -0.55]}>
+            <mesh position={[0, sz * 0.62, 0]}>
+              <cylinderGeometry args={[sz * 0.13, sz * 0.16, sz * 0.22, 12]} />
+              <meshStandardMaterial color="#1e1042" metalness={0.5} roughness={0.4} />
+            </mesh>
+            <mesh position={[0, sz * 1.62, 0]} castShadow>
+              <cylinderGeometry args={[sz * 0.075, sz * 0.1, sz * 1.8, 10]} />
+              <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.3} />
+            </mesh>
+            <mesh position={[0, sz * 2.55, 0]}>
+              <sphereGeometry args={[sz * 0.11, 10, 10]} />
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+            </mesh>
+          </group>
+          {/* Status LEDs */}
+          {["#22c55e","#22c55e","#3b82f6","#374151","#374151"].map((c, i) => (
+            <mesh key={i} position={[(i - 2) * sz * 0.34, sz * 1.08, sz * 0.52]}>
+              <sphereGeometry args={[sz * 0.08, 8, 8]} />
+              <meshStandardMaterial color={c} emissive={c} emissiveIntensity={c === "#374151" ? 0 : 0.9} />
+            </mesh>
+          ))}
+          {/* WAN port (amber) */}
+          <mesh position={[sz * -0.75, sz * 0.3, sz * 0.77]}>
+            <boxGeometry args={[sz * 0.28, sz * 0.2, sz * 0.06]} />
+            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.55} />
+          </mesh>
+          {/* LAN ports */}
+          {[0,1,2,3].map(i => (
+            <mesh key={i} position={[(i - 1.5) * sz * 0.34 + sz * 0.2, sz * 0.3, sz * 0.77]}>
+              <boxGeometry args={[sz * 0.26, sz * 0.18, sz * 0.06]} />
+              <meshStandardMaterial color="#374151" />
+            </mesh>
+          ))}
+        </group>
       );
+
+    /* ── NVR / DVR ── */
+    case "nvr":
+      return (
+        <group>
+          {/* Main chassis */}
+          <mesh userData={{ main: true }} position={[0, sz * 0.72, 0]} castShadow>
+            <boxGeometry args={[sz * 2.9, sz * 1.44, sz * 1.9]} />
+            <meshStandardMaterial color="#0f1f2e" emissive="#0f1f2e" emissiveIntensity={0.1} metalness={0.4} roughness={0.5} />
+          </mesh>
+          {/* Front panel */}
+          <mesh position={[0, sz * 0.72, sz * 0.97]}>
+            <boxGeometry args={[sz * 2.85, sz * 1.38, sz * 0.04]} />
+            <meshStandardMaterial color="#162636" metalness={0.3} roughness={0.6} />
+          </mesh>
+          {/* Three HDD bays */}
+          {[-0.78, 0, 0.78].map((ox, i) => (
+            <group key={i} position={[sz * ox, sz * 0.72, sz * 0.99]}>
+              {/* Bay recess */}
+              <mesh>
+                <boxGeometry args={[sz * 0.65, sz * 1.15, sz * 0.04]} />
+                <meshStandardMaterial color="#1a3040" metalness={0.25} roughness={0.65} />
+              </mesh>
+              {/* Platter circle (embossed) */}
+              <mesh position={[0, sz * 0.08, sz * 0.03]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[sz * 0.22, sz * 0.22, sz * 0.02, 20]} />
+                <meshStandardMaterial color="#1d4ed8" emissive="#1d4ed8" emissiveIntensity={0.4} />
+              </mesh>
+              {/* Activity LED */}
+              <mesh position={[0, sz * -0.42, sz * 0.04]}>
+                <sphereGeometry args={[sz * 0.08, 8, 8]} />
+                <meshStandardMaterial color={i < 2 ? "#22c55e" : "#374151"} emissive={i < 2 ? "#22c55e" : "#000"} emissiveIntensity={i < 2 ? 1.0 : 0} />
+              </mesh>
+            </group>
+          ))}
+          {/* Status LEDs row (top) */}
+          {["#22c55e","#22c55e","#f59e0b","#374151"].map((c, i) => (
+            <mesh key={i} position={[(i - 1.5) * sz * 0.38, sz * 1.38, sz * 0.98]}>
+              <sphereGeometry args={[sz * 0.08, 8, 8]} />
+              <meshStandardMaterial color={c} emissive={c} emissiveIntensity={c === "#374151" ? 0 : 0.9} />
+            </mesh>
+          ))}
+          {/* Power button */}
+          <mesh position={[sz * 1.22, sz * 0.72, sz * 0.99]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[sz * 0.14, sz * 0.14, sz * 0.06, 16]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.85} />
+          </mesh>
+        </group>
+      );
+
     default:
       return (
-        <mesh userData={{ main: true }} position={[0, sz, 0]} castShadow>
-          <sphereGeometry args={[sz, 16, 16]} />
-          {mat}
+        <mesh userData={{ main: true }} position={[0, sz * 0.8, 0]} castShadow>
+          <sphereGeometry args={[sz * 0.7, 16, 16]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} metalness={0.3} roughness={0.4} />
         </mesh>
       );
   }
@@ -274,7 +466,7 @@ function EquipMarker({ el, color, selected, onSelect }) {
       )}
 
       {/* Label */}
-      <Html position={[0, sz * 2.0, 0]} center zIndexRange={[100, 200]} occlude={false}>
+      <Html position={[0, sz * 3.5, 0]} center zIndexRange={[100, 200]} occlude={false}>
         <div style={{
           background: "rgba(15,20,40,0.82)",
           color: "#f1f5f9",
