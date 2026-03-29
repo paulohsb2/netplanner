@@ -331,49 +331,89 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       });
     }
 
-    /* ── 3D equipment shapes ── */
+    /* ── 3D equipment shapes — detailed miniatures ── */
     function build3DEquip(type, sz, color, x, z, rotY) {
       const group = new THREE.Group();
       group.position.set(x, 0, z);
-      const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, metalness: 0.3, roughness: 0.4 });
-      const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.2 });
 
       if (type === 'camera') {
-        const bodyGrp = new THREE.Group();
-        bodyGrp.rotation.y = rotY;
-        const dome = new THREE.Mesh(new THREE.SphereGeometry(sz, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), mat);
-        dome.userData.main = true; dome.castShadow = true;
-        bodyGrp.add(dome);
-        const lens = new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.2, sz * 0.26, sz * 0.28, 12), darkMat);
-        lens.rotation.x = Math.PI / 2; lens.position.set(0, sz * 0.2, sz * 0.78); lens.castShadow = true;
-        bodyGrp.add(lens);
-        group.add(bodyGrp);
+        const bg = new THREE.Group(); bg.rotation.y = rotY; group.add(bg);
+        // Base plate
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(sz*1.05,sz*1.05,sz*0.1,36), new THREE.MeshStandardMaterial({color:0x1a2235,emissive:0x1a2235,emissiveIntensity:0.12,metalness:0.45,roughness:0.5}));
+        base.position.y = sz*0.05; base.userData.main = true; base.castShadow = true; bg.add(base);
+        // Collar
+        const collar = new THREE.Mesh(new THREE.CylinderGeometry(sz*0.82,sz*0.97,sz*0.24,32), new THREE.MeshStandardMaterial({color:0x2d3f52,metalness:0.55,roughness:0.38}));
+        collar.position.y = sz*0.17; collar.castShadow = true; bg.add(collar);
+        // Dome glass
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(sz*0.8,36,18,0,Math.PI*2,0,Math.PI/2), new THREE.MeshStandardMaterial({color:0x0b1828,transparent:true,opacity:0.78,metalness:0.08,roughness:0.04}));
+        dome.position.y = sz*0.24; bg.add(dome);
+        // Iris lens
+        const iris = new THREE.Mesh(new THREE.CylinderGeometry(sz*0.24,sz*0.27,sz*0.1,24), new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.8,metalness:0.3,roughness:0.2}));
+        iris.rotation.z = -Math.PI/2; iris.position.set(sz*0.3,sz*0.3,0); iris.castShadow = true; bg.add(iris);
+        // Screws
+        for (let i=0;i<4;i++) { const a=(i*Math.PI)/2; const sc=new THREE.Mesh(new THREE.SphereGeometry(sz*0.06,8,8),new THREE.MeshStandardMaterial({color:0x0a1018,metalness:0.7,roughness:0.3})); sc.position.set(Math.cos(a)*sz*0.92,sz*0.06,Math.sin(a)*sz*0.92); bg.add(sc); }
+
       } else if (type === 'wifi') {
-        const dome = new THREE.Mesh(new THREE.SphereGeometry(sz, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.46), mat);
-        dome.userData.main = true; dome.castShadow = true;
-        group.add(dome);
+        // White disc body
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(sz*1.55,sz*1.45,sz*0.28,48), new THREE.MeshStandardMaterial({color:0xf1f5f9,emissive:0xf1f5f9,emissiveIntensity:0.08,metalness:0.1,roughness:0.25}));
+        disc.position.y = sz*0.14; disc.userData.main = true; disc.castShadow = true; group.add(disc);
+        // Groove rings
+        [sz*1.22,sz*0.88].forEach((r,i) => { const ring=new THREE.Mesh(new THREE.CylinderGeometry(r,r,sz*0.04,48,1,true),new THREE.MeshStandardMaterial({color:i===0?0x94a3b8:0x64748b,side:THREE.DoubleSide,metalness:0.2,roughness:0.6})); ring.position.y=sz*0.27; group.add(ring); });
+        // Hub
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(sz*0.46,sz*0.46,sz*0.1,28), new THREE.MeshStandardMaterial({color:0x334155,metalness:0.4,roughness:0.4}));
+        hub.position.y = sz*0.3; hub.castShadow = true; group.add(hub);
+        // LED ring
+        const ledR = new THREE.Mesh(new THREE.CylinderGeometry(sz*0.28,sz*0.28,sz*0.04,28,1,true), new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.1,side:THREE.DoubleSide,transparent:true,opacity:0.9}));
+        ledR.position.y = sz*0.35; group.add(ledR);
+        // LED dots at 120°
+        for (let i=0;i<3;i++) { const a=(i*Math.PI*2)/3; const led=new THREE.Mesh(new THREE.SphereGeometry(sz*0.07,8,8),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.3})); led.position.set(Math.cos(a)*sz*1.35,sz*0.29,Math.sin(a)*sz*1.35); group.add(led); }
+
       } else if (type === 'switch') {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 2.4, sz * 0.5, sz * 1.1), mat);
-        body.position.y = sz * 0.25; body.userData.main = true; body.castShadow = true;
-        group.add(body);
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(sz*3.1,sz*0.48,sz*1.5), new THREE.MeshStandardMaterial({color:0x1e293b,emissive:0x1e293b,emissiveIntensity:0.1,metalness:0.4,roughness:0.5}));
+        chassis.position.y = sz*0.24; chassis.userData.main = true; chassis.castShadow = true; group.add(chassis);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(sz*3.05,sz*0.02,sz*1.45), new THREE.MeshStandardMaterial({color:0x263548,metalness:0.3,roughness:0.6}));
+        top.position.y = sz*0.49; group.add(top);
+        // Ports
+        for (let row=0;row<2;row++) for (let i=0;i<8;i++) { const act=row===0?i<6:i<4; const p=new THREE.Mesh(new THREE.BoxGeometry(sz*0.22,sz*0.14,sz*0.06),new THREE.MeshStandardMaterial({color:act?0x22c55e:0x374151,emissive:act?0x22c55e:0,emissiveIntensity:act?0.85:0})); p.position.set((i-3.5)*sz*0.34,sz*0.44,sz*(row===0?0.4:0.62)); group.add(p); }
+        // SFP
+        const sfp=new THREE.Mesh(new THREE.BoxGeometry(sz*0.28,sz*0.18,sz*0.28),new THREE.MeshStandardMaterial({color:0xf59e0b,emissive:0xf59e0b,emissiveIntensity:0.55})); sfp.position.set(sz*1.2,sz*0.44,sz*0.51); group.add(sfp);
+        // Status LEDs
+        [[0.9,0x22c55e],[0.62,0x22c55e],[0.34,0x3b82f6]].forEach(([ox,c]) => { const led=new THREE.Mesh(new THREE.SphereGeometry(sz*0.08,8,8),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.0})); led.position.set(sz*ox,sz*0.52,sz*-0.6); group.add(led); });
+
       } else if (type === 'router') {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 1.8, sz * 0.8, sz * 1.2), mat);
-        body.position.y = sz * 0.4; body.userData.main = true; body.castShadow = true;
-        group.add(body);
-        const antMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
-        [-0.52, 0.52].forEach(ox => {
-          const ant = new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.07, sz * 0.07, sz * 1.3, 8), antMat);
-          ant.position.set(sz * ox, sz * 1.4, sz * -0.38); ant.castShadow = true;
-          group.add(ant);
+        const bg = new THREE.Group(); bg.rotation.y = rotY; group.add(bg);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(sz*2.1,sz*1.04,sz*1.5), new THREE.MeshStandardMaterial({color:0x2d1b69,emissive:0x2d1b69,emissiveIntensity:0.12,metalness:0.38,roughness:0.5}));
+        body.position.y = sz*0.52; body.userData.main = true; body.castShadow = true; bg.add(body);
+        // Antennas
+        [-0.72,0.72].forEach(ox => {
+          const base2=new THREE.Mesh(new THREE.CylinderGeometry(sz*0.13,sz*0.16,sz*0.22,12),new THREE.MeshStandardMaterial({color:0x1e1042,metalness:0.5,roughness:0.4})); base2.position.set(sz*ox,sz*0.62,sz*-0.55); bg.add(base2);
+          const rod=new THREE.Mesh(new THREE.CylinderGeometry(sz*0.075,sz*0.1,sz*1.8,10),new THREE.MeshStandardMaterial({color:0x334155,metalness:0.6,roughness:0.3})); rod.position.set(sz*ox,sz*1.62,sz*-0.55); rod.castShadow=true; bg.add(rod);
+          const tip=new THREE.Mesh(new THREE.SphereGeometry(sz*0.11,10,10),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.2})); tip.position.set(sz*ox,sz*2.55,sz*-0.55); bg.add(tip);
         });
+        // LEDs
+        [0x22c55e,0x22c55e,0x3b82f6,0x374151,0x374151].forEach((c,i) => { const led=new THREE.Mesh(new THREE.SphereGeometry(sz*0.08,8,8),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:c===0x374151?0:0.9})); led.position.set((i-2)*sz*0.34,sz*1.08,sz*0.52); bg.add(led); });
+        // WAN
+        const wan=new THREE.Mesh(new THREE.BoxGeometry(sz*0.28,sz*0.2,sz*0.06),new THREE.MeshStandardMaterial({color:0xf59e0b,emissive:0xf59e0b,emissiveIntensity:0.55})); wan.position.set(sz*-0.75,sz*0.3,sz*0.77); bg.add(wan);
+
       } else if (type === 'nvr') {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(sz * 2.2, sz * 1.1, sz * 1.4), mat);
-        body.position.y = sz * 0.55; body.userData.main = true; body.castShadow = true;
-        group.add(body);
+        const chassis=new THREE.Mesh(new THREE.BoxGeometry(sz*2.9,sz*1.44,sz*1.9),new THREE.MeshStandardMaterial({color:0x0f1f2e,emissive:0x0f1f2e,emissiveIntensity:0.1,metalness:0.4,roughness:0.5}));
+        chassis.position.y=sz*0.72; chassis.userData.main=true; chassis.castShadow=true; group.add(chassis);
+        const front=new THREE.Mesh(new THREE.BoxGeometry(sz*2.85,sz*1.38,sz*0.04),new THREE.MeshStandardMaterial({color:0x162636,metalness:0.3,roughness:0.6}));
+        front.position.set(0,sz*0.72,sz*0.97); group.add(front);
+        // HDD bays
+        [-0.78,0,0.78].forEach((ox,i) => {
+          const bay=new THREE.Mesh(new THREE.BoxGeometry(sz*0.65,sz*1.15,sz*0.04),new THREE.MeshStandardMaterial({color:0x1a3040,metalness:0.25,roughness:0.65})); bay.position.set(sz*ox,sz*0.72,sz*0.99); group.add(bay);
+          const plt=new THREE.Mesh(new THREE.CylinderGeometry(sz*0.22,sz*0.22,sz*0.02,20),new THREE.MeshStandardMaterial({color:0x1d4ed8,emissive:0x1d4ed8,emissiveIntensity:0.4})); plt.rotation.x=Math.PI/2; plt.position.set(sz*ox,sz*0.8,sz*1.01); group.add(plt);
+          const led=new THREE.Mesh(new THREE.SphereGeometry(sz*0.08,8,8),new THREE.MeshStandardMaterial({color:i<2?0x22c55e:0x374151,emissive:i<2?0x22c55e:0,emissiveIntensity:i<2?1.0:0})); led.position.set(sz*ox,sz*0.3,sz*1.01); group.add(led);
+        });
+        // Status LEDs
+        [0x22c55e,0x22c55e,0xf59e0b,0x374151].forEach((c,i) => { const led=new THREE.Mesh(new THREE.SphereGeometry(sz*0.08,8,8),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:c===0x374151?0:0.9})); led.position.set((i-1.5)*sz*0.38,sz*1.38,sz*0.98); group.add(led); });
+        // Power button
+        const pwr=new THREE.Mesh(new THREE.CylinderGeometry(sz*0.14,sz*0.14,sz*0.06,16),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.85})); pwr.rotation.x=Math.PI/2; pwr.position.set(sz*1.22,sz*0.72,sz*0.99); group.add(pwr);
+
       } else {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(sz, 16, 16), mat);
-        s.position.y = sz; s.userData.main = true; s.castShadow = true;
-        group.add(s);
+        const s=new THREE.Mesh(new THREE.SphereGeometry(sz*0.7,16,16),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.15,metalness:0.3,roughness:0.4}));
+        s.position.y=sz*0.8; s.userData.main=true; s.castShadow=true; group.add(s);
       }
       return group;
     }
@@ -436,7 +476,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
         const color = el.customColor ? parseInt(el.customColor.replace('#',''), 16) : meta.color;
         const colorHex = '#' + color.toString(16).padStart(6,'0');
         const x = el.x * S, z = el.y * S;
-        const sz = { small: 0.16, medium: 0.22, large: 0.30 }[el.size || 'medium'];
+        const sz = { small: 0.25, medium: 0.36, large: 0.50 }[el.size || 'medium'];
         const rotY = -((el.rotation || 0) * Math.PI) / 180;
 
         // Base disc
@@ -454,7 +494,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
         pageGroup.add(eqGroup);
 
         // Label
-        addLabel(el.label, colorHex, new THREE.Vector3(x, sz * 2.2, z));
+        addLabel(el.label, colorHex, new THREE.Vector3(x, sz * 3.5, z));
 
         // Coverage
         if (el.radius > 0 && el.angle > 0) {
@@ -484,7 +524,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
                 if (!r || r <= 0) return;
                 const zColor = doriColors[zone];
                 coneGroup.add(new THREE.Mesh(buildSectorGeo(r, CONE_H, coneAngleRad),
-                  new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.35, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })));
+                  new THREE.MeshStandardMaterial({ color: zColor, emissive: zColor, emissiveIntensity: 0.45, transparent: true, opacity: 0.30, side: THREE.DoubleSide, depthWrite: false })));
               });
 
               // Floor ring sectors — clear distinct colour bands
@@ -525,11 +565,11 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
             ringGroup.position.set(x, 0.02, z);
             ringGroup.rotation.x = -Math.PI / 2;
 
-            const diskMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, transparent: true, opacity: 0.20, side: THREE.DoubleSide, depthWrite: false });
+            const diskMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, transparent: true, opacity: 0.40, side: THREE.DoubleSide, depthWrite: false });
             ringGroup.add(new THREE.Mesh(new THREE.CircleGeometry(radius, 64), diskMat));
 
             [1, 0.66, 0.33].forEach(r => {
-              const rMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.0, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+              const rMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false });
               ringGroup.add(new THREE.Mesh(new THREE.RingGeometry(radius * r - 0.05, radius * r, 72), rMat));
             });
 

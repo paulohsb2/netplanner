@@ -10,7 +10,6 @@ import { useRef, useMemo, useEffect, useState } from "react";
 
 /* ─── constants ─── */
 const S = 0.01;           // 1 pixel = 0.01 world units
-const EQ_H = 0.22;        // equipment marker center height
 const CONE_H = 4.5;       // camera cone height (ceiling to floor)
 const SIZES = { small: 0.25, medium: 0.36, large: 0.50 };
 
@@ -496,7 +495,7 @@ function DoriConeZone({ radius, angleRad, color }) {
   const geo = useMemo(() => buildSectorGeo(radius, CONE_H, angleRad), [radius, angleRad]);
   return (
     <mesh geometry={geo}>
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} transparent opacity={0.30} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
   );
 }
@@ -527,7 +526,7 @@ function DoriFloorRings({ detR, obsR, recR, idR, fovRad }) {
   );
 }
 
-function CameraCone({ el, color, scale }) {
+function CameraCone({ el, color }) {
   const x = el.x * S;
   const z = el.y * S;
   const rotY = -((el.rotation || 0) * Math.PI) / 180;
@@ -564,13 +563,13 @@ function CameraCone({ el, color, scale }) {
   return (
     <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.3} transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh geometry={sideGeo}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} transparent opacity={0.35} wireframe depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} transparent opacity={0.45} wireframe depthWrite={false} />
       </mesh>
       <mesh geometry={footGeo} position={[0, -CONE_H + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} transparent opacity={0.60} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -588,7 +587,7 @@ function WifiRings({ el, color }) {
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     ringsRef.current.forEach((m, i) => {
-      if (m) m.material.opacity = 0.45 + 0.15 * Math.sin(t * 1.8 + i * 1.2);
+      if (m) m.material.opacity = 0.60 + 0.18 * Math.sin(t * 1.8 + i * 1.2);
     });
   });
 
@@ -602,9 +601,9 @@ function WifiRings({ el, color }) {
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.5}
+          emissiveIntensity={0.7}
           transparent
-          opacity={0.22}
+          opacity={0.40}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -882,7 +881,7 @@ export default function Scene3D({
             const eq = EQUIPMENT.find((e) => e.type === el.type);
             const color = el.customColor || eq.color;
             if (el.type === "camera" || el.type === "nvr") {
-              return <CameraCone key={`cov-${el.id}`} el={el} color={color} scale={scale} />;
+              return <CameraCone key={`cov-${el.id}`} el={el} color={color} />;
             }
             return <WifiRings key={`cov-${el.id}`} el={el} color={color} />;
           })}
