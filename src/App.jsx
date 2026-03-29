@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { generateViewerHTML } from "./htmlExport";
 import { calcAllDori, CAMERA_PRESETS, PRESET_GROUPS, DORI_ZONES, DORI_COLORS, DORI_LABELS, DORI_OPACITIES, defaultCameraSpec, calcStorage } from "./doriCalc";
+
+const defaultWifiSpec = () => ({ standard: "Wi-Fi 6", frequency: "2.4+5", maxClients: 50, txPower: 20, brand: "", model: "" });
+const defaultSwitchSpec = () => ({ ports: 16, speed: "1G", poe: false, poeBudget: 150, managed: false, brand: "", model: "" });
+const defaultRouterSpec = () => ({ wanType: "Fibra", wanSpeed: "500/500", lanPorts: 4, brand: "", model: "" });
+const defaultNvrSpec = () => ({ channels: 16, storage: "2TB", poeChannels: 0, maxResolution: "4K", brand: "", model: "" });
 const Scene3D = lazy(() => import("./Scene3D"));
 
 /* ═══ CONSTANTS ═══ */
@@ -27,6 +32,16 @@ const LAYERS = [
 ];
 
 const SIZES = { small: 24, medium: 32, large: 42 };
+
+const CABLE_TYPES = [
+  { id: "CAT5e", label: "CAT5e", color: "#94a3b8" },
+  { id: "CAT6", label: "CAT6", color: "#64748b" },
+  { id: "CAT6A", label: "CAT6A", color: "#475569" },
+  { id: "CAT7", label: "CAT7", color: "#334155" },
+  { id: "Fibra OM3", label: "Fibra OM3", color: "#eab308" },
+  { id: "Coaxial", label: "Coaxial", color: "#3b82f6" },
+  { id: "PoE", label: "PoE", color: "#22c55e" },
+];
 
 /* ═══ ICON VARIANTS (SVG paths, viewBox 0 0 24 24) ═══ */
 const ICON_VARIANTS = {
@@ -80,27 +95,72 @@ const EquipIcon = ({ type, variant = 0, size = 16, color = "#fff" }) => {
 };
 
 /* ═══ PROFESSIONAL EQUIPMENT SHAPES (top-down technical view) ═══ */
-const equipSVGStr = (type, color, rotation = 0) => {
+const equipSVGStr = (type, color, rotation = 0, cameraType = "dome") => {
   const c = (color || "#888").replace(/[<>"]/g, "");
   const r = Number(rotation) || 0;
   const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:100%;height:100%;display:block">`;
   const close = `</svg>`;
   switch (type) {
-    case "camera": return open + `
-      <circle cx="50" cy="50" r="46" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="3"/>
-      <circle cx="50" cy="50" r="36" fill="#0f1824"/>
-      <circle cx="50" cy="50" r="27" fill="none" stroke="${c}" stroke-width="5"/>
-      <circle cx="50" cy="50" r="21" fill="#08101e"/>
-      <circle cx="50" cy="50" r="13" fill="${c}" opacity="0.7"/>
-      <circle cx="50" cy="50" r="5" fill="${c}" opacity="0.95"/>
-      <ellipse cx="42" cy="42" rx="5" ry="3" fill="white" opacity="0.28" transform="rotate(-35,50,50)"/>
-      <circle cx="96" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-      <circle cx="4" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-      <circle cx="50" cy="96" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-      <g transform="rotate(${r},50,50)">
-        <polygon points="50,2 41,16 59,16" fill="${c}" opacity="0.95"/>
-      </g>
-    ` + close;
+    case "camera": {
+      if (cameraType === "bullet") return open + `
+        <g transform="rotate(${r},50,50)">
+          <rect x="10" y="32" width="66" height="36" rx="8" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+          <rect x="10" y="32" width="66" height="15" rx="7" fill="#263548"/>
+          <circle cx="24" cy="40" r="4" fill="${c}" opacity="0.7" stroke="${c}" stroke-width="2"/>
+          <circle cx="24" cy="40" r="1.5" fill="${c}"/>
+          <rect x="68" y="38" width="18" height="14" rx="3" fill="#0f1824" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+          <circle cx="77" cy="45" r="4.5" fill="${c}" opacity="0.85"/>
+          <circle cx="77" cy="45" r="2" fill="white" opacity="0.4"/>
+          <polygon points="50,2 43,12 57,12" fill="${c}" opacity="0.95"/>
+        </g>
+      ` + close;
+      if (cameraType === "ptz") return open + `
+        <circle cx="50" cy="50" r="46" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="3"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="${c}" stroke-width="3" stroke-dasharray="8 5"/>
+        <circle cx="50" cy="50" r="28" fill="#0f1824"/>
+        <circle cx="50" cy="50" r="20" fill="none" stroke="${c}" stroke-width="4"/>
+        <circle cx="50" cy="50" r="13" fill="${c}" opacity="0.7"/>
+        <circle cx="50" cy="50" r="5" fill="${c}" opacity="0.95"/>
+        <ellipse cx="43" cy="43" rx="5" ry="3" fill="white" opacity="0.28" transform="rotate(-35,50,50)"/>
+        <g transform="rotate(${r},50,50)">
+          <polygon points="50,2 41,16 59,16" fill="${c}" opacity="0.95"/>
+          <polygon points="50,98 41,84 59,84" fill="${c}" opacity="0.5"/>
+          <polygon points="2,50 16,41 16,59" fill="${c}" opacity="0.5"/>
+          <polygon points="98,50 84,41 84,59" fill="${c}" opacity="0.5"/>
+        </g>
+      ` + close;
+      if (cameraType === "box") return open + `
+        <g transform="rotate(${r},50,50)">
+          <rect x="8" y="20" width="74" height="60" rx="5" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+          <rect x="8" y="20" width="74" height="18" rx="5" fill="#263548"/>
+          <circle cx="20" cy="29" r="3" fill="#22c55e"/>
+          <circle cx="29" cy="29" r="3" fill="#22c55e"/>
+          <rect x="16" y="43" width="36" height="28" rx="3" fill="#0f1824" stroke="${c}" stroke-width="2"/>
+          <circle cx="34" cy="57" r="10" fill="${c}" opacity="0.75"/>
+          <circle cx="34" cy="57" r="5" fill="#0a1420"/>
+          <circle cx="34" cy="57" r="2.5" fill="${c}"/>
+          <ellipse cx="29" cy="52" rx="4" ry="2.5" fill="white" opacity="0.22" transform="rotate(-25,34,57)"/>
+          <rect x="56" y="44" width="20" height="8" rx="2" fill="#f59e0b"/>
+          <polygon points="50,2 43,12 57,12" fill="${c}" opacity="0.95"/>
+        </g>
+      ` + close;
+      // default: dome
+      return open + `
+        <circle cx="50" cy="50" r="46" fill="#1a2235" stroke="rgba(255,255,255,0.85)" stroke-width="3"/>
+        <circle cx="50" cy="50" r="36" fill="#0f1824"/>
+        <circle cx="50" cy="50" r="27" fill="none" stroke="${c}" stroke-width="5"/>
+        <circle cx="50" cy="50" r="21" fill="#08101e"/>
+        <circle cx="50" cy="50" r="13" fill="${c}" opacity="0.7"/>
+        <circle cx="50" cy="50" r="5" fill="${c}" opacity="0.95"/>
+        <ellipse cx="42" cy="42" rx="5" ry="3" fill="white" opacity="0.28" transform="rotate(-35,50,50)"/>
+        <circle cx="96" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+        <circle cx="4" cy="50" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+        <circle cx="50" cy="96" r="3" fill="#060d16" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+        <g transform="rotate(${r},50,50)">
+          <polygon points="50,2 41,16 59,16" fill="${c}" opacity="0.95"/>
+        </g>
+      ` + close;
+    }
     case "wifi": return open + `
       <circle cx="51" cy="52" r="46" fill="rgba(0,0,0,0.13)"/>
       <circle cx="50" cy="50" r="46" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="2.5"/>
@@ -197,10 +257,10 @@ const equipSVGStr = (type, color, rotation = 0) => {
 };
 
 /* React component — renders equipment shape inline */
-const EquipShape2D = ({ type, color, size, rotation = 0 }) => (
+const EquipShape2D = ({ type, color, size, rotation = 0, cameraType = "dome" }) => (
   <div
     style={{ width: size, height: size, lineHeight: 0, flexShrink: 0, overflow: "hidden" }}
-    dangerouslySetInnerHTML={{ __html: equipSVGStr(type, color, rotation) }}
+    dangerouslySetInnerHTML={{ __html: equipSVGStr(type, color, rotation, cameraType) }}
   />
 );
 
@@ -265,12 +325,15 @@ export default function NetPlanner() {
   const [calibrateDialog, setCalibrateDialog] = useState(null);
   const [calibrateMeters, setCalibrateMeters] = useState("");
   const [cableStart, setCableStart] = useState(null);
+  const [cableType, setCableType] = useState("CAT6");
+  const [snap, setSnap] = useState(false);
   const [nextNumbers, setNextNumbers] = useState({ camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 });
   const [pdfDialog, setPdfDialog] = useState(false);
   const [view3D, setView3D] = useState(false);
   const [calcModal, setCalcModal] = useState(false);
   const [calcHours, setCalcHours] = useState(24);
   const [calcDays, setCalcDays] = useState(30);
+  const [toast, setToast] = useState(null);
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -312,31 +375,36 @@ export default function NetPlanner() {
   /* ─── canvas ─── */
   const getPos = (e) => { const r = canvasRef.current?.getBoundingClientRect(); return r ? { x: (e.clientX - r.left - pan.x) / zoom, y: (e.clientY - r.top - pan.y) / zoom } : { x: 0, y: 0 }; };
 
+  const snapPos = (x, y) => snap ? { x: Math.round(x / 50) * 50, y: Math.round(y / 50) * 50 } : { x, y };
+
   const handleCanvasClick = (e) => {
     if (dragging) return;
-    const { x, y } = getPos(e);
+    const raw = getPos(e); const { x, y } = snapPos(raw.x, raw.y);
     if (tool.startsWith("place:")) {
       const type = tool.split(":")[1]; const eq = EQUIPMENT.find(eq => eq.type === type); if (!eq) return;
       saveSnapshot(); const num = nextNumbers[type]; setNextNumbers(prev => ({ ...prev, [type]: prev[type] + 1 }));
       const camSpec = type === "camera" ? defaultCameraSpec() : null;
       const initAngle = camSpec ? camSpec.fovH : eq.angle;
       const initRadius = camSpec ? camSpec.doriDistances.detection / scale : eq.coverageRadius;
-      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: initAngle, radius: initRadius, visible: true, notes: "", customColor: null, size: "medium", iconVariant: 0, ...(camSpec ? { cameraSpec: camSpec } : {}) };
+      const typeSpecs = type === "wifi" ? { wifiSpec: defaultWifiSpec() } : type === "switch" ? { switchSpec: defaultSwitchSpec() } : type === "router" ? { routerSpec: defaultRouterSpec() } : type === "nvr" ? { nvrSpec: defaultNvrSpec() } : {};
+      const el = { id: `${type}-${Date.now()}`, type, label: `${eq.label} ${String(num).padStart(2, "0")}`, number: num, x, y, rotation: 0, angle: initAngle, radius: initRadius, visible: true, notes: "", customColor: null, size: "medium", iconVariant: 0, ...(camSpec ? { cameraSpec: camSpec } : {}), ...typeSpecs };
       setElements(prev => [...prev, el]); setSelectedId(el.id); return;
     }
     if (tool === "measure") { if (!measurePoints.length) setMeasurePoints([{ x, y }]); else { const p1 = measurePoints[0]; saveSnapshot(); setMeasureLines(prev => [...prev, { p1, p2: { x, y }, dist: Math.hypot(x - p1.x, y - p1.y) }]); setMeasurePoints([]); } return; }
     if (tool === "calibrate") { if (!calibratePoints.length) setCalibratePoints([{ x, y }]); else { const p1 = calibratePoints[0]; setCalibrateDialog({ pixelDist: Math.hypot(x - p1.x, y - p1.y), p1, p2: { x, y } }); setCalibrateMeters(""); setCalibratePoints([]); } return; }
-    if (tool === "cable") { const hit = visibleElements.find(el => Math.hypot(x - el.x, y - el.y) < 20); if (!hit) return; if (!cableStart) setCableStart(hit.id); else if (hit.id !== cableStart) { saveSnapshot(); setConnections(prev => [...prev, { id: `c-${Date.now()}`, from: cableStart, to: hit.id }]); setCableStart(null); } return; }
+    if (tool === "cable") { const hit = visibleElements.find(el => Math.hypot(x - el.x, y - el.y) < 20); if (!hit) return; if (!cableStart) setCableStart(hit.id); else if (hit.id !== cableStart) { saveSnapshot(); setConnections(prev => [...prev, { id: `c-${Date.now()}`, from: cableStart, to: hit.id, cableType }]); setCableStart(null); } return; }
     if (tool === "select") { let cm = null; measureLines.forEach((ml, i) => { const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; if (Math.hypot(x - mx, y - my) < 20 / zoom) cm = i; }); if (cm !== null) { setSelectedMeasure(cm); setSelectedId(null); return; } }
     setSelectedId(null); setSelectedMeasure(null);
   };
 
   const startDrag = (e, id) => { e.stopPropagation(); if (["measure", "calibrate", "cable"].includes(tool)) return; saveSnapshot(); setSelectedId(id); const p = getPos(e); const el = elements.find(el => el.id === id); setDragging({ id, ox: p.x - el.x, oy: p.y - el.y }); };
-  const onMouseMove = (e) => { if (dragging) { const p = getPos(e); setElements(prev => prev.map(el => el.id === dragging.id ? { ...el, x: p.x - dragging.ox, y: p.y - dragging.oy } : el)); } if (panning) { setPan({ x: pan.x + e.clientX - panStart.x, y: pan.y + e.clientY - panStart.y }); setPanStart({ x: e.clientX, y: e.clientY }); } };
+  const onMouseMove = (e) => { if (dragging) { const p = getPos(e); const { x, y } = snapPos(p.x - dragging.ox, p.y - dragging.oy); setElements(prev => prev.map(el => el.id === dragging.id ? { ...el, x, y } : el)); } if (panning) { setPan({ x: pan.x + e.clientX - panStart.x, y: pan.y + e.clientY - panStart.y }); setPanStart({ x: e.clientX, y: e.clientY }); } };
   const onMouseUp = () => { setDragging(null); setPanning(false); };
   const startPan = (e) => { if (tool === "pan" || e.button === 1) { e.preventDefault(); setPanning(true); setPanStart({ x: e.clientX, y: e.clientY }); } };
   const handleWheel = (e) => { e.preventDefault(); const d = e.deltaY > 0 ? 0.9 : 1.1; const r = canvasRef.current.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; const nz = Math.min(Math.max(zoom * d, 0.1), 5); setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) }); setZoom(nz); };
   const fitToScreen = () => { if (!page.bgNatural.w || !containerRef.current) return; const cw = containerRef.current.clientWidth, ch = containerRef.current.clientHeight; const fz = Math.min(cw / page.bgNatural.w, ch / page.bgNatural.h, 1) * 0.9; setZoom(fz); setPan({ x: (cw - page.bgNatural.w * fz) / 2, y: (ch - page.bgNatural.h * fz) / 2 }); };
+
+  const showToast = (msg, type = "info") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   /* ─── CRUD ─── */
   const updateEl = (id, p) => { saveSnapshot(); setElements(prev => prev.map(el => el.id === id ? { ...el, ...p } : el)); };
@@ -374,18 +442,18 @@ export default function NetPlanner() {
     const c = document.createElement("canvas"); c.width = pg.bgNatural.w; c.height = pg.bgNatural.h; const ctx = c.getContext("2d");
     // Pre-load all equipment SVG icons
     const iconMap = {};
-    await Promise.all(pg.elements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return Promise.resolve(); const col = el.customColor || eq.color; const key = `${el.type}|${col}|${el.rotation}`; if (iconMap[key]) return Promise.resolve(); return new Promise(r => { const img = new window.Image(); img.onload = () => { iconMap[key] = img; r(); }; img.onerror = r; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(equipSVGStr(el.type, col, el.rotation)); }); }));
+    await Promise.all(pg.elements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return Promise.resolve(); const col = el.customColor || eq.color; const ct = el.cameraType || "dome"; const key = `${el.type}|${col}|${el.rotation}|${ct}`; if (iconMap[key]) return Promise.resolve(); return new Promise(r => { const img = new window.Image(); img.onload = () => { iconMap[key] = img; r(); }; img.onerror = r; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(equipSVGStr(el.type, col, el.rotation, ct)); }); }));
     const draw = () => {
       pg.connections.forEach(cn => { const f = pg.elements.find(e => e.id === cn.from), t = pg.elements.find(e => e.id === cn.to); if (!f || !t) return; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(t.x, t.y); ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); });
       pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq || el.radius <= 0 || el.angle <= 0) return; const col = el.customColor || eq.color; ctx.save(); ctx.translate(el.x, el.y); ctx.rotate((el.rotation - el.angle / 2) * Math.PI / 180); ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, el.radius, 0, el.angle * Math.PI / 180); ctx.closePath(); ctx.fillStyle = col + "45"; ctx.strokeStyle = col + "99"; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke(); ctx.restore(); });
-      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; const key = `${el.type}|${col}|${el.rotation}`; const icon = iconMap[key]; if (icon) ctx.drawImage(icon, el.x - sz / 2, el.y - sz / 2, sz, sz); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + sz / 2 + 4, el.y + 4); ctx.fillText(el.label, el.x + sz / 2 + 4, el.y + 4); });
+      pg.elements.forEach(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; const ct = el.cameraType || "dome"; const key = `${el.type}|${col}|${el.rotation}|${ct}`; const icon = iconMap[key]; if (icon) ctx.drawImage(icon, el.x - sz / 2, el.y - sz / 2, sz, sz); ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#1a2332"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3.5; ctx.strokeText(el.label, el.x + sz / 2 + 4, el.y + 4); ctx.fillText(el.label, el.x + sz / 2 + 4, el.y + 4); });
       pg.measureLines.forEach(ml => { ctx.beginPath(); ctx.moveTo(ml.p1.x, ml.p1.y); ctx.lineTo(ml.p2.x, ml.p2.y); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.8; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]); const mx = (ml.p1.x + ml.p2.x) / 2, my = (ml.p1.y + ml.p2.y) / 2; ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#92400e"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); ctx.fillText(`${(ml.dist * scale).toFixed(1)}m`, mx + 4, my - 5); });
       resolve(c);
     };
     if (pg.bgImage) { const img = new window.Image(); img.onload = () => { ctx.drawImage(img, 0, 0); draw(); }; img.src = pg.bgImage; } else { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); draw(); }
   });
 
-  const exportPNG = async () => { const c = await renderToCanvas(page); const a = document.createElement("a"); a.download = `${projectName} - ${page.name}.png`; a.href = c.toDataURL("image/png"); a.click(); };
+  const exportPNG = async () => { const c = await renderToCanvas(page); const a = document.createElement("a"); a.download = `${projectName} - ${page.name}.png`; a.href = c.toDataURL("image/png"); a.click(); showToast("PNG exportado com sucesso!", "success"); };
 
   /* ─── PDF PROFESSIONAL (light/clean) ─── */
   const hex2rgb = (h) => { const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h); return r ? [parseInt(r[1], 16), parseInt(r[2], 16), parseInt(r[3], 16)] : [0, 0, 0]; };
@@ -573,8 +641,140 @@ export default function NetPlanner() {
           });
         }
 
+        // DORI legend (only if there are cameras with cameraSpec)
+        const hasCams = pg.elements.some(e => e.type === "camera" && e.cameraSpec);
+        if (hasCams) {
+          const doriLegendY = ty + (pg.connections.length > 0 ? 13 : 8) + (pg.measureLines.length > 0 ? 5 + pg.measureLines.length * 4.5 + 10 : 0) + 10;
+          if (doriLegendY < pH - 30) {
+            pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(26, 35, 50);
+            pdf.text("Zonas DORI", M + 2, doriLegendY);
+            const doriInfo = [
+              { zone: "detection", label: "Detection (≥25 PPM)", color: "#22c55e" },
+              { zone: "observation", label: "Observation (≥62.5 PPM)", color: "#84cc16" },
+              { zone: "recognition", label: "Recognition (≥125 PPM)", color: "#f59e0b" },
+              { zone: "identification", label: "Identification (≥250 PPM)", color: "#ef4444" },
+            ];
+            doriInfo.forEach((d, i) => {
+              const dx = M + 2 + (i % 2) * 88, dy = doriLegendY + 5 + Math.floor(i / 2) * 5.5;
+              const [dr, dg, db] = hex2rgb(d.color);
+              pdf.setFillColor(dr, dg, db); pdf.rect(dx, dy - 2.5, 4, 4, "F");
+              pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.5); pdf.setTextColor(95, 107, 122);
+              pdf.text(d.label, dx + 5.5, dy);
+            });
+          }
+        }
+
         pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(156, 163, 175);
         pdf.text(`${projectName}  ·  Legenda`, M, pH - 5);
+      }
+    }
+
+    /* ── BOM PAGE ── */
+    const allElements = pages.flatMap(p => p.elements);
+    if (allElements.length > 0) {
+      pdf.addPage("a4", "portrait");
+      const bW = 210, bH = 297;
+      pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, bW, bH, "F");
+      pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, bW, 2.5, "F");
+
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.setTextColor(26, 35, 50);
+      pdf.text("Lista de Materiais (BOM)", M, 14);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(156, 163, 175);
+      pdf.text(new Date().toLocaleDateString("pt-BR"), bW - M, 14, { align: "right" });
+      pdf.setDrawColor(223, 227, 234); pdf.setLineWidth(0.3); pdf.line(M, 17, bW - M, 17);
+
+      const bTW = bW - M * 2;
+      const bColW = [bTW * 0.06, bTW * 0.14, bTW * 0.22, bTW * 0.38, bTW * 0.1, bTW * 0.1];
+      const bColX = [M]; for (let i = 1; i < 6; i++) bColX.push(bColX[i - 1] + bColW[i - 1]);
+      const bHeaders = ["#", "Tipo", "Marca / Modelo", "Especificações", "Qtd", "Pavimento"];
+
+      let bty = 24; const browH = 6;
+      const drawBomHeader = () => {
+        pdf.setFillColor(240, 242, 245); pdf.rect(M, bty - 3.5, bTW, browH, "F");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(95, 107, 122);
+        bHeaders.forEach((h, i) => pdf.text(h, bColX[i] + 1.5, bty));
+        bty += browH;
+      };
+      drawBomHeader();
+
+      // Group by type across all pages
+      let lineNum = 1;
+      EQUIPMENT.forEach(eq => {
+        const items = allElements.filter(e => e.type === eq.type);
+        if (!items.length) return;
+
+        items.forEach((el, idx) => {
+          if (bty + browH > bH - M - 10) {
+            pdf.addPage("a4", "portrait");
+            pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, bW, bH, "F");
+            pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, bW, 2.5, "F");
+            bty = 12; drawBomHeader();
+          }
+
+          if (lineNum % 2 === 0) { pdf.setFillColor(248, 249, 251); pdf.rect(M, bty - 3.5, bTW, browH, "F"); }
+
+          const [cr, cg, cb] = hex2rgb(el.customColor || eq.color);
+          pdf.setFillColor(cr, cg, cb); pdf.circle(bColX[0] + 2.5, bty - 0.8, 1.5, "F");
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(26, 35, 50);
+          pdf.text(String(lineNum), bColX[0] + 5, bty);
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(95, 107, 122);
+          pdf.text(eq.label, bColX[1] + 1.5, bty);
+
+          // Brand/Model
+          let brandModel = "";
+          if (el.type === "camera" && el.cameraSpec) brandModel = [el.cameraSpec.brand, el.cameraSpec.model].filter(Boolean).join(" ") || "—";
+          else if (el.type === "wifi" && el.wifiSpec) brandModel = [el.wifiSpec.brand, el.wifiSpec.model].filter(Boolean).join(" ") || "—";
+          else if (el.type === "switch" && el.switchSpec) brandModel = [el.switchSpec.brand, el.switchSpec.model].filter(Boolean).join(" ") || "—";
+          else if (el.type === "router" && el.routerSpec) brandModel = [el.routerSpec.brand, el.routerSpec.model].filter(Boolean).join(" ") || "—";
+          else if (el.type === "nvr" && el.nvrSpec) brandModel = [el.nvrSpec.brand, el.nvrSpec.model].filter(Boolean).join(" ") || "—";
+          else brandModel = el.label;
+          pdf.text(brandModel.substring(0, 28), bColX[2] + 1.5, bty);
+
+          // Specs summary
+          let specSummary = "";
+          if (el.type === "camera" && el.cameraSpec) { const s = el.cameraSpec; specSummary = `${s.resolutionH}×${s.resolutionV} · ${s.focalLength}mm · ${s.codec}`; }
+          else if (el.type === "wifi" && el.wifiSpec) { const s = el.wifiSpec; specSummary = `${s.standard} · ${s.frequency} · ${s.maxClients} cli.`; }
+          else if (el.type === "switch" && el.switchSpec) { const s = el.switchSpec; specSummary = `${s.ports}p ${s.speed}${s.poe ? " PoE" : ""}${s.managed ? " Mgd" : ""}`; }
+          else if (el.type === "router" && el.routerSpec) { const s = el.routerSpec; specSummary = `${s.wanType} · ${s.wanSpeed} · ${s.lanPorts} LAN`; }
+          else if (el.type === "nvr" && el.nvrSpec) { const s = el.nvrSpec; specSummary = `${s.channels}ch · ${s.maxResolution} · ${s.storage}`; }
+          pdf.text(specSummary.substring(0, 44), bColX[3] + 1.5, bty);
+
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(26, 35, 50);
+          pdf.text("1", bColX[4] + 1.5, bty);
+
+          // Page name
+          const pgName = pages.find(pg => pg.elements.some(e => e.id === el.id))?.name || "";
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.5); pdf.setTextColor(95, 107, 122);
+          pdf.text(pgName.substring(0, 14), bColX[5] + 1.5, bty);
+
+          pdf.setDrawColor(237, 240, 244); pdf.setLineWidth(0.15); pdf.line(M, bty + 2, M + bTW, bty + 2);
+          bty += browH; lineNum++;
+        });
+      });
+
+      // Totals
+      bty += 3;
+      pdf.setDrawColor(37, 99, 235); pdf.setLineWidth(0.4); pdf.line(M, bty - 2, M + bTW, bty - 2);
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(37, 99, 235);
+      pdf.text(`Total: ${allElements.length} item(s)`, M + 2, bty + 2);
+
+      // Cable summary
+      const allConns = pages.flatMap(p => p.connections);
+      if (allConns.length > 0) {
+        bty += 12;
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(26, 35, 50);
+        pdf.text("Cabeamento", M + 2, bty);
+        bty += 5;
+        const cableGroups = {};
+        allConns.forEach(cn => { const t = cn.cableType || "CAT6"; cableGroups[t] = (cableGroups[t] || 0) + 1; });
+        Object.entries(cableGroups).forEach(([type, count]) => {
+          const cbl = CABLE_TYPES.find(c => c.id === type);
+          const [cr, cg, cb] = hex2rgb(cbl?.color || "#64748b");
+          pdf.setFillColor(cr, cg, cb); pdf.rect(M + 2, bty - 2.5, 3, 3, "F");
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(95, 107, 122);
+          pdf.text(`${type}: ${count} ponto(s)`, M + 7, bty);
+          bty += 4.5;
+        });
       }
     }
 
@@ -584,7 +784,7 @@ export default function NetPlanner() {
 
   /* ─── save/load ─── */
   const saveProject = () => { const d = { projectName, pages, clientInfo, companyLogo, watermarkOpacity, scale, nextNumbers, version: "2.1" }; const b = new Blob([JSON.stringify(d)], { type: "application/json" }); const a = document.createElement("a"); a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}.json`; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href); };
-  const loadProject = () => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId((d.pages || [])[0]?.id || "page-1"); setProjectName(d.projectName || "Projeto"); setClientInfo(d.clientInfo || { name: "", address: "", phone: "", email: "" }); setCompanyLogo(d.companyLogo || null); setWatermarkOpacity(d.watermarkOpacity ?? 0.06); setScale(d.scale || 0.05); setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 }); setUndoStack([]); setRedoStack([]); setSelectedId(null); } catch { alert("Erro ao carregar."); } }; i.click(); };
+  const loadProject = () => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId((d.pages || [])[0]?.id || "page-1"); setProjectName(d.projectName || "Projeto"); setClientInfo(d.clientInfo || { name: "", address: "", phone: "", email: "" }); setCompanyLogo(d.companyLogo || null); setWatermarkOpacity(d.watermarkOpacity ?? 0.06); setScale(d.scale || 0.05); setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 }); setUndoStack([]); setRedoStack([]); setSelectedId(null); } catch { showToast("Erro ao carregar o arquivo. Verifique se é um projeto NetPlanner válido.", "error"); } }; i.click(); };
 
   const exportHTML = () => {
     const html = generateViewerHTML(projectName, pages, clientInfo, scale, companyLogo);
@@ -594,6 +794,7 @@ export default function NetPlanner() {
     a.href = URL.createObjectURL(b);
     a.click();
     URL.revokeObjectURL(a.href);
+    showToast("Visualizador 3D exportado com sucesso!", "success");
   };
 
   const sel = elements.find(e => e.id === selectedId);
@@ -640,7 +841,7 @@ export default function NetPlanner() {
               <button onClick={() => { setTool("calibrate"); setCalibratePoints([]); }} style={{ ...btnS(tool === "calibrate"), width: "100%", background: T.white, border: `1px solid ${T.borderLight}`, color: tool === "calibrate" ? "#d97706" : T.textMuted, boxShadow: T.shadow }}><Ruler size={13} /> Calibrar escala</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: T.textDim, marginBottom: "14px", paddingLeft: "4px" }}>
-              Escala: 1px = <input type="number" value={scale} onChange={e => setScale(parseFloat(e.target.value) || 0.01)} step="0.01" min="0.001" style={{ width: "52px", padding: "3px 5px", borderRadius: "5px", border: `1px solid ${T.border}`, background: T.white, color: T.text, fontSize: "10px", textAlign: "center" }} /> m
+              Escala: 1px = <input type="number" value={scale} onChange={e => setScale(Math.max(0.001, parseFloat(e.target.value) || 0.05))} step="0.01" min="0.001" style={{ width: "52px", padding: "3px 5px", borderRadius: "5px", border: `1px solid ${T.border}`, background: T.white, color: T.text, fontSize: "10px", textAlign: "center" }} /> m
             </div>
 
             <div style={secT}>Resumo</div>
@@ -670,6 +871,12 @@ export default function NetPlanner() {
 
             {elements.length > 0 && (<><div style={{ ...secT, marginTop: "14px" }}>Legenda</div>
               {EQUIPMENT.map(eq => { const its = elements.filter(e => e.type === eq.type); if (!its.length) return null; return (<div key={eq.type}><div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 5px", fontSize: "10px", fontWeight: 700, color: eq.color }}><EquipIcon type={eq.type} variant={0} size={12} color={eq.color} /> {eq.label} ({its.length})</div>{its.map(it => <button key={it.id} onClick={() => { setSelectedId(it.id); setSidebarTab("equip"); }} style={{ display: "block", width: "100%", padding: "3px 5px 3px 18px", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px", textAlign: "left", background: selectedId === it.id ? T.accentLight : "transparent", color: selectedId === it.id ? T.accent : T.textMuted }}>{it.label}</button>)}</div>); })}
+            </>)}
+            {connections.length > 0 && (<><div style={{ ...secT, marginTop: "14px" }}>Cabeamento</div>
+              {Object.entries(connections.reduce((acc, cn) => { const t = cn.cableType || "CAT6"; acc[t] = (acc[t] || 0) + 1; return acc; }, {})).map(([type, count]) => {
+                const cbl = CABLE_TYPES.find(c => c.id === type) || CABLE_TYPES[1];
+                return (<div key={type} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 5px", fontSize: "10px", color: T.textMuted }}><div style={{ width: "20px", height: "3px", background: cbl.color, borderRadius: "2px", flexShrink: 0 }} /><span style={{ flex: 1 }}>{type}</span><span style={{ fontWeight: 700, color: T.text }}>{count}×</span></div>);
+              })}
             </>)}
             {measureLines.length > 0 && (<><div style={{ ...secT, marginTop: "14px" }}>Medições</div>
               {measureLines.map((ml, i) => (<div key={i} onClick={() => { setSelectedMeasure(i); setSelectedId(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 7px", background: selectedMeasure === i ? "#fef3c7" : T.white, border: `1px solid ${selectedMeasure === i ? "#fbbf24" : T.borderLight}`, borderRadius: "5px", marginBottom: "3px", cursor: "pointer", boxShadow: T.shadow }}><span style={{ fontSize: "10px", color: "#92400e" }}>#{i + 1}: {(ml.dist * scale).toFixed(2)}m</span><button onClick={(e) => { e.stopPropagation(); saveSnapshot(); setMeasureLines(prev => prev.filter((_, j) => j !== i)); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim }}><X size={10} /></button></div>))}
@@ -722,6 +929,7 @@ export default function NetPlanner() {
           <button onClick={() => { setTool("select"); setCableStart(null); }} style={btnS(tool === "select")}><MousePointer size={13} /></button>
           <button onClick={() => setTool("pan")} style={btnS(tool === "pan")}><Move size={13} /></button>
           <button onClick={() => { setTool("measure"); setMeasurePoints([]); }} style={btnS(tool === "measure")}><Ruler size={13} /></button>
+          <button onClick={() => setSnap(s => !s)} style={{ ...btnS(snap), background: snap ? "#f0fdf4" : "transparent", color: snap ? "#059669" : T.textMuted, border: snap ? "1.5px solid #059669" : "none" }} title="Snap ao grid (50px)"><Grid3X3 size={13} /></button>
           <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
           <button onClick={undo} style={btnS()} disabled={!undoStack.length}><Undo2 size={13} /></button>
           <button onClick={redo} style={btnS()} disabled={!redoStack.length}><Redo2 size={13} /></button>
@@ -740,7 +948,7 @@ export default function NetPlanner() {
             {tool.startsWith("place:") && <><Plus size={11} /> Clique na planta para posicionar. Esc cancela.</>}
             {tool === "measure" && <><Ruler size={11} /> {!measurePoints.length ? "Clique no ponto inicial." : "Clique no ponto final."}</>}
             {tool === "calibrate" && <><Ruler size={11} /> {!calibratePoints.length ? "Clique no início de medida conhecida." : "Clique no ponto final."}</>}
-            {tool === "cable" && <><Link2 size={11} /> {!cableStart ? "Clique no equipamento de origem." : "Clique no destino."}</>}
+            {tool === "cable" && <><Link2 size={11} /> {!cableStart ? "Clique no equipamento de origem." : "Clique no destino."} <select value={cableType} onChange={e => setCableType(e.target.value)} style={{ marginLeft: "8px", padding: "2px 6px", borderRadius: "5px", border: `1px solid #bae6fd`, background: "#fff", fontSize: "10px", color: "#0369a1", cursor: "pointer" }}>{CABLE_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select><span style={{ width: "10px", height: "10px", borderRadius: "50%", background: CABLE_TYPES.find(c => c.id === cableType)?.color || "#64748b", display: "inline-block", marginLeft: "4px" }} /></>}
             {tool === "pan" && <><Move size={11} /> Arraste para mover.</>}
           </div>
         )}
@@ -779,7 +987,7 @@ export default function NetPlanner() {
                 {companyLogo && watermarkOpacity > 0 && <img src={companyLogo} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", maxWidth: "30%", maxHeight: "30%", opacity: watermarkOpacity, pointerEvents: "none" }} />}
                 {showGrid && <svg style={{ position: "absolute", top: 0, left: 0, width: page.bgNatural.w, height: page.bgNatural.h, pointerEvents: "none" }}><defs><pattern id="gr" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#94a3b8" strokeWidth="0.3" opacity=".25" /></pattern></defs><rect width="100%" height="100%" fill="url(#gr)" /></svg>}
                 <svg style={{ position: "absolute", top: 0, left: 0, width: page.bgNatural.w, height: page.bgNatural.h, pointerEvents: "none" }}>
-                  {showCables && connections.map(cn => { const f = elements.find(e => e.id === cn.from), t = elements.find(e => e.id === cn.to); if (!f || !t) return null; return (<g key={cn.id} style={{ pointerEvents: "auto", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); saveSnapshot(); setConnections(prev => prev.filter(c => c.id !== cn.id)); }}><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="transparent" strokeWidth={10 / zoom} /><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="#94a3b8" strokeWidth={1.5 / zoom} strokeDasharray={`${7 / zoom} ${4 / zoom}`} /><circle cx={(f.x + t.x) / 2} cy={(f.y + t.y) / 2} r={2.5 / zoom} fill="#94a3b8" /></g>); })}
+                  {showCables && connections.map(cn => { const f = elements.find(e => e.id === cn.from), t = elements.find(e => e.id === cn.to); if (!f || !t) return null; const cbl = CABLE_TYPES.find(c => c.id === (cn.cableType || "CAT6")) || CABLE_TYPES[1]; return (<g key={cn.id} style={{ pointerEvents: "auto", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); saveSnapshot(); setConnections(prev => prev.filter(c => c.id !== cn.id)); }}><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="transparent" strokeWidth={10 / zoom} /><line x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={cbl.color} strokeWidth={1.5 / zoom} strokeDasharray={`${7 / zoom} ${4 / zoom}`} /><circle cx={(f.x + t.x) / 2} cy={(f.y + t.y) / 2} r={2.5 / zoom} fill={cbl.color} /></g>); })}
                   {showCoverage && visibleElements.filter(e => e.radius > 0 && e.angle > 0).map(el => {
                     const eq = EQUIPMENT.find(e => e.type === el.type);
                     const c = el.customColor || eq.color;
@@ -808,12 +1016,27 @@ export default function NetPlanner() {
                 {visibleElements.map(el => { const eq = EQUIPMENT.find(e => e.type === el.type); if (!eq) return null; const isSel = selectedId === el.id; const isCbl = cableStart === el.id; const col = el.customColor || eq.color; const sz = SIZES[el.size || "medium"]; const isRound = el.type === "camera" || el.type === "wifi"; return (
                   <div key={el.id} onMouseDown={(e) => startDrag(e, el.id)} onClick={(e) => { e.stopPropagation(); if (tool === "cable") handleCanvasClick(e); else { setSelectedId(el.id); setSelectedMeasure(null); } }} style={{ position: "absolute", left: el.x - sz / 2, top: el.y - sz / 2, width: sz, height: sz, cursor: tool === "cable" ? "cell" : "pointer", zIndex: isSel ? 100 : 10, filter: isSel ? `drop-shadow(0 0 6px ${col})` : `drop-shadow(0 2px 4px rgba(0,0,0,0.35))` }}>
                     {(isSel || isCbl) && <div style={{ position: "absolute", inset: -6, borderRadius: isRound ? "50%" : "10px", border: `2.5px solid ${isCbl ? T.success : col}`, opacity: .65, animation: "pulse 1.5s infinite", pointerEvents: "none" }} />}
-                    <EquipShape2D type={el.type} color={col} size={sz} rotation={el.rotation} />
+                    <EquipShape2D type={el.type} color={col} size={sz} rotation={el.rotation} cameraType={el.cameraType || "dome"} />
                     <div style={{ position: "absolute", left: "50%", top: sz + 4 + "px", transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: Math.max(9, 10 / Math.sqrt(zoom)), fontWeight: 700, color: T.text, textShadow: "0 0 4px #fff, 0 0 8px #fff, 0 1px 2px rgba(0,0,0,.15)", pointerEvents: "none" }}>{el.label}</div>
                   </div>); })}
               </div>
             </div>
           )}
+          {/* Scale bar */}
+          {page.bgImage && (() => {
+            const roundMeters = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+            const barM = roundMeters.find(m => (m / scale) * zoom > 60) || roundMeters[roundMeters.length - 1];
+            const barPx = Math.round((barM / scale) * zoom);
+            return (
+              <div style={{ position: "absolute", bottom: "12px", left: "14px", zIndex: 50, pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "1px" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, color: "#1a2332", background: "rgba(255,255,255,0.75)", padding: "0 3px", borderRadius: "3px" }}>{barM}m</span>
+                <svg width={barPx + 4} height="10" style={{ overflow: "visible", display: "block" }}>
+                  <rect x="2" y="3" width={barPx} height="5" fill="rgba(255,255,255,0.7)" stroke="#1a2332" strokeWidth="1.5" />
+                  <rect x="2" y="3" width={barPx / 2} height="5" fill="#1a2332" />
+                </svg>
+              </div>
+            );
+          })()}
         </div>
 
         <div style={{ background: T.toolbar, borderTop: `1px solid ${T.borderLight}`, padding: "3px 14px", display: "flex", alignItems: "center", gap: "10px", fontSize: "10px", color: T.textDim }}>
@@ -839,18 +1062,12 @@ export default function NetPlanner() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}><div><label style={lblS}>X</label><input type="number" value={Math.round(sel.x)} onChange={e => updateEl(sel.id, { x: +e.target.value || 0 })} style={inpS} /></div><div><label style={lblS}>Y</label><input type="number" value={Math.round(sel.y)} onChange={e => updateEl(sel.id, { y: +e.target.value || 0 })} style={inpS} /></div></div>
             <div><label style={lblS}>Rotação (°)</label><div style={{ display: "flex", gap: "6px", alignItems: "center" }}><input type="number" value={sel.rotation} onChange={e => updateEl(sel.id, { rotation: +e.target.value || 0 })} min={0} max={360} style={{ ...inpS, flex: 1 }} /><input type="range" value={sel.rotation} onChange={e => updateEl(sel.id, { rotation: +e.target.value })} min={0} max={360} style={{ flex: 2, accentColor: sel.customColor || selEq.color }} /></div><div style={{ display: "flex", gap: "3px", marginTop: "4px" }}>{[["N", 270], ["L", 0], ["S", 90], ["O", 180]].map(([d, v]) => <button key={d} onClick={() => updateEl(sel.id, { rotation: v })} style={{ flex: 1, padding: "4px", borderRadius: "5px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: sel.rotation === v ? (sel.customColor || selEq.color) + "15" : T.white, color: sel.rotation === v ? (sel.customColor || selEq.color) : T.textDim }}>{d}</button>)}</div></div>
             <div><label style={lblS}>Ângulo cobertura</label><div style={{ display: "flex", gap: "6px", alignItems: "center" }}><input type="number" value={sel.angle} onChange={e => updateEl(sel.id, { angle: Math.min(360, Math.max(0, +e.target.value || 0)) })} style={{ ...inpS, flex: 1 }} /><input type="range" value={sel.angle} onChange={e => updateEl(sel.id, { angle: +e.target.value })} min={0} max={360} style={{ flex: 2, accentColor: sel.customColor || selEq.color }} /></div></div>
-            <div><label style={lblS}>Alcance (px)</label><div style={{ display: "flex", gap: "6px", alignItems: "center" }}><input type="number" value={sel.radius} onChange={e => updateEl(sel.id, { radius: Math.max(0, +e.target.value || 0) })} style={{ ...inpS, flex: 1 }} /><input type="range" value={sel.radius} onChange={e => updateEl(sel.id, { radius: +e.target.value })} min={0} max={300} style={{ flex: 2, accentColor: sel.customColor || selEq.color }} /></div>{sel.radius > 0 && <div style={{ fontSize: "9px", color: T.textDim, marginTop: "2px" }}>≈ {(sel.radius * scale).toFixed(1)}m</div>}</div>
+            <div><label style={lblS}>Alcance (px)</label><div style={{ display: "flex", gap: "6px", alignItems: "center" }}><input type="number" value={sel.radius} onChange={e => updateEl(sel.id, { radius: Math.max(0, +e.target.value || 0) })} style={{ ...inpS, flex: 1 }} /><input type="range" value={sel.radius} onChange={e => updateEl(sel.id, { radius: +e.target.value })} min={0} max={600} style={{ flex: 2, accentColor: sel.customColor || selEq.color }} /></div>{sel.radius > 0 && <div style={{ fontSize: "9px", color: T.textDim, marginTop: "2px" }}>≈ {(sel.radius * scale).toFixed(1)}m</div>}</div>
             <div><label style={lblS}>Cor</label><div style={{ display: "flex", gap: "5px", alignItems: "center" }}><input type="color" value={sel.customColor || selEq.color} onChange={e => updateEl(sel.id, { customColor: e.target.value })} style={{ width: "30px", height: "28px", border: `1px solid ${T.border}`, borderRadius: "5px", cursor: "pointer", padding: "2px" }} /><span style={{ fontSize: "10px", color: T.textDim, flex: 1 }}>{sel.customColor || "Padrão"}</span>{sel.customColor && <button onClick={() => updateEl(sel.id, { customColor: null })} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, fontSize: "10px" }}>Reset</button>}</div></div>
             <div><label style={lblS}>Tamanho</label><div style={{ display: "flex", gap: "3px" }}>{["small", "medium", "large"].map(s => <button key={s} onClick={() => updateEl(sel.id, { size: s })} style={{ flex: 1, padding: "4px", borderRadius: "5px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "10px", fontWeight: 600, background: (sel.size || "medium") === s ? T.accentLight : T.white, color: (sel.size || "medium") === s ? T.accent : T.textDim }}>{s === "small" ? "P" : s === "medium" ? "M" : "G"}</button>)}</div></div>
-            <div><label style={lblS}>Modelo do Ícone</label><div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-              {(ICON_VARIANTS[sel.type] || []).map((v, i) => (
-                <button key={i} onClick={() => updateEl(sel.id, { iconVariant: i })} title={v.name}
-                  style={{ width: "40px", height: "40px", borderRadius: "8px", border: (sel.iconVariant || 0) === i ? `2px solid ${sel.customColor || selEq.color}` : `1px solid ${T.borderLight}`, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1px", background: (sel.iconVariant || 0) === i ? (sel.customColor || selEq.color) + "10" : T.white, boxShadow: (sel.iconVariant || 0) === i ? `0 0 0 3px ${(sel.customColor || selEq.color)}15` : T.shadow, transition: "all .15s" }}>
-                  <EquipIcon type={sel.type} variant={i} size={20} color={(sel.iconVariant || 0) === i ? (sel.customColor || selEq.color) : T.textMuted} />
-                  <span style={{ fontSize: "6px", color: T.textDim, lineHeight: 1 }}>{v.name}</span>
-                </button>
-              ))}
-            </div></div>
+            {sel.type === "camera" && (
+              <div><label style={lblS}>Tipo de Câmera</label><div style={{ display: "flex", gap: "3px" }}>{[["dome","Dome"],["bullet","Bullet"],["ptz","PTZ"],["box","Box"]].map(([v,l]) => <button key={v} onClick={() => updateEl(sel.id, { cameraType: v })} style={{ flex: 1, padding: "4px 2px", borderRadius: "5px", border: `1px solid ${T.borderLight}`, cursor: "pointer", fontSize: "9px", fontWeight: 600, background: (sel.cameraType || "dome") === v ? T.accentLight : T.white, color: (sel.cameraType || "dome") === v ? T.accent : T.textDim }}>{l}</button>)}</div></div>
+            )}
             <div><label style={lblS}>Observações</label><textarea value={sel.notes || ""} onChange={e => updateEl(sel.id, { notes: e.target.value })} placeholder="Modelo, specs..." rows={2} style={{ ...inpS, resize: "vertical", fontFamily: "inherit" }} /></div>
 
             {/* ─── Camera Technical Spec (DORI) ─── */}
@@ -903,6 +1120,96 @@ export default function NetPlanner() {
                         {["H.265", "H.264", "MJPEG"].map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ─── WiFi Spec ─── */}
+            {sel.type === "wifi" && (() => {
+              const spec = sel.wifiSpec || defaultWifiSpec();
+              const upd = (p) => setElements(prev => prev.map(el => el.id === sel.id ? { ...el, wifiSpec: { ...(el.wifiSpec || defaultWifiSpec()), ...p } } : el));
+              return (
+                <div style={{ background: T.card, borderRadius: "8px", padding: "10px", border: `1px solid ${T.borderLight}` }}>
+                  <div style={{ ...secT, marginBottom: "8px", color: "#2563eb" }}>Especificações Wi-Fi</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Padrão</label><select value={spec.standard} onChange={e => upd({ standard: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{["Wi-Fi 4","Wi-Fi 5","Wi-Fi 6","Wi-Fi 6E"].map(v => <option key={v}>{v}</option>)}</select></div>
+                    <div><label style={lblS}>Frequência</label><select value={spec.frequency} onChange={e => upd({ frequency: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{["2.4GHz","5GHz","2.4+5","2.4+5+6"].map(v => <option key={v}>{v}</option>)}</select></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Clientes máx.</label><input type="number" value={spec.maxClients} onChange={e => upd({ maxClients: +e.target.value || 1 })} style={inpS} /></div>
+                    <div><label style={lblS}>Potência TX (dBm)</label><input type="number" value={spec.txPower} onChange={e => upd({ txPower: +e.target.value || 0 })} style={inpS} /></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+                    <div><label style={lblS}>Marca</label><input value={spec.brand} onChange={e => upd({ brand: e.target.value })} placeholder="Ex: Ubiquiti" style={inpS} /></div>
+                    <div><label style={lblS}>Modelo</label><input value={spec.model} onChange={e => upd({ model: e.target.value })} placeholder="Ex: U6-Pro" style={inpS} /></div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ─── Switch Spec ─── */}
+            {sel.type === "switch" && (() => {
+              const spec = sel.switchSpec || defaultSwitchSpec();
+              const upd = (p) => setElements(prev => prev.map(el => el.id === sel.id ? { ...el, switchSpec: { ...(el.switchSpec || defaultSwitchSpec()), ...p } } : el));
+              return (
+                <div style={{ background: T.card, borderRadius: "8px", padding: "10px", border: `1px solid ${T.borderLight}` }}>
+                  <div style={{ ...secT, marginBottom: "8px", color: "#d97706" }}>Especificações Switch</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Portas</label><select value={spec.ports} onChange={e => upd({ ports: +e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{[8,16,24,48].map(v => <option key={v}>{v}</option>)}</select></div>
+                    <div><label style={lblS}>Velocidade</label><select value={spec.speed} onChange={e => upd({ speed: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{["100M","1G","2.5G","10G"].map(v => <option key={v}>{v}</option>)}</select></div>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "5px", alignItems: "center" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: T.textMuted, cursor: "pointer" }}><input type="checkbox" checked={spec.poe} onChange={e => upd({ poe: e.target.checked })} /> PoE</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: T.textMuted, cursor: "pointer" }}><input type="checkbox" checked={spec.managed} onChange={e => upd({ managed: e.target.checked })} /> Gerenciável</label>
+                  </div>
+                  {spec.poe && <div style={{ marginBottom: "5px" }}><label style={lblS}>Budget PoE (W)</label><input type="number" value={spec.poeBudget} onChange={e => upd({ poeBudget: +e.target.value || 0 })} style={inpS} /></div>}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+                    <div><label style={lblS}>Marca</label><input value={spec.brand} onChange={e => upd({ brand: e.target.value })} placeholder="Ex: Cisco" style={inpS} /></div>
+                    <div><label style={lblS}>Modelo</label><input value={spec.model} onChange={e => upd({ model: e.target.value })} placeholder="Ex: SG350-16" style={inpS} /></div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ─── Router Spec ─── */}
+            {sel.type === "router" && (() => {
+              const spec = sel.routerSpec || defaultRouterSpec();
+              const upd = (p) => setElements(prev => prev.map(el => el.id === sel.id ? { ...el, routerSpec: { ...(el.routerSpec || defaultRouterSpec()), ...p } } : el));
+              return (
+                <div style={{ background: T.card, borderRadius: "8px", padding: "10px", border: `1px solid ${T.borderLight}` }}>
+                  <div style={{ ...secT, marginBottom: "8px", color: "#7c3aed" }}>Especificações Roteador</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Tipo WAN</label><select value={spec.wanType} onChange={e => upd({ wanType: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{["Fibra","ADSL","Cable","4G","5G","SD-WAN"].map(v => <option key={v}>{v}</option>)}</select></div>
+                    <div><label style={lblS}>Velocidade WAN</label><input value={spec.wanSpeed} onChange={e => upd({ wanSpeed: e.target.value })} placeholder="Ex: 500/500 Mbps" style={inpS} /></div>
+                  </div>
+                  <div style={{ marginBottom: "5px" }}><label style={lblS}>Portas LAN</label><input type="number" value={spec.lanPorts} onChange={e => upd({ lanPorts: +e.target.value || 1 })} style={inpS} /></div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+                    <div><label style={lblS}>Marca</label><input value={spec.brand} onChange={e => upd({ brand: e.target.value })} placeholder="Ex: MikroTik" style={inpS} /></div>
+                    <div><label style={lblS}>Modelo</label><input value={spec.model} onChange={e => upd({ model: e.target.value })} placeholder="Ex: RB4011" style={inpS} /></div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ─── NVR Spec ─── */}
+            {sel.type === "nvr" && (() => {
+              const spec = sel.nvrSpec || defaultNvrSpec();
+              const upd = (p) => setElements(prev => prev.map(el => el.id === sel.id ? { ...el, nvrSpec: { ...(el.nvrSpec || defaultNvrSpec()), ...p } } : el));
+              return (
+                <div style={{ background: T.card, borderRadius: "8px", padding: "10px", border: `1px solid ${T.borderLight}` }}>
+                  <div style={{ ...secT, marginBottom: "8px", color: "#059669" }}>Especificações NVR/DVR</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Canais</label><select value={spec.channels} onChange={e => upd({ channels: +e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{[4,8,16,32,64].map(v => <option key={v}>{v}</option>)}</select></div>
+                    <div><label style={lblS}>Resolução máx.</label><select value={spec.maxResolution} onChange={e => upd({ maxResolution: e.target.value })} style={{ ...inpS, cursor: "pointer" }}>{["1080p","4MP","4K","8MP"].map(v => <option key={v}>{v}</option>)}</select></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "5px" }}>
+                    <div><label style={lblS}>Storage</label><input value={spec.storage} onChange={e => upd({ storage: e.target.value })} placeholder="Ex: 4×4TB" style={inpS} /></div>
+                    <div><label style={lblS}>Canais PoE</label><input type="number" value={spec.poeChannels} onChange={e => upd({ poeChannels: +e.target.value || 0 })} style={inpS} /></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+                    <div><label style={lblS}>Marca</label><input value={spec.brand} onChange={e => upd({ brand: e.target.value })} placeholder="Ex: Intelbras" style={inpS} /></div>
+                    <div><label style={lblS}>Modelo</label><input value={spec.model} onChange={e => upd({ model: e.target.value })} placeholder="Ex: MHDX 1116" style={inpS} /></div>
                   </div>
                 </div>
               );
@@ -991,7 +1298,16 @@ export default function NetPlanner() {
         );
       })()}
 
-      <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}input[type=range]{height:4px}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:${T.bg}}::-webkit-scrollbar-thumb{background:${T.border};border-radius:3px}`}</style>
+      {/* ═══ TOAST ═══ */}
+      {toast && (
+        <div style={{ position: "fixed", top: "16px", right: "16px", zIndex: 99999, padding: "11px 16px", borderRadius: "9px", background: toast.type === "error" ? "#dc2626" : toast.type === "success" ? "#059669" : "#1e293b", color: "#fff", fontSize: "12px", fontWeight: 600, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: "8px", maxWidth: "320px", animation: "fadeInToast .2s ease" }}>
+          <span>{toast.type === "error" ? "✕" : toast.type === "success" ? "✓" : "ℹ"}</span>
+          <span>{toast.msg}</span>
+          <button onClick={() => setToast(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.7)", marginLeft: "4px", padding: 0, display: "flex" }}><X size={13} /></button>
+        </div>
+      )}
+
+      <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}@keyframes fadeInToast{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}input[type=range]{height:4px}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:${T.bg}}::-webkit-scrollbar-thumb{background:${T.border};border-radius:3px}`}</style>
     </div>
   );
 }

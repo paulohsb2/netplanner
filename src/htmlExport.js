@@ -128,6 +128,49 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       font-size:10px;color:#c8d0dc;font-weight:600;letter-spacing:.5px;
       pointer-events:none;
     }
+
+    /* ── Info Panel ── */
+    .info-panel{
+      position:fixed;top:80px;right:20px;z-index:200;
+      width:260px;background:rgba(255,255,255,0.96);
+      border:1px solid #dfe3ea;border-radius:14px;padding:16px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.12);backdrop-filter:blur(16px);
+      transform:translateX(290px);transition:transform .25s cubic-bezier(.4,0,.2,1);
+    }
+    .info-panel.open{transform:translateX(0)}
+    .info-panel-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+    .info-panel-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .info-panel-title{font-size:13px;font-weight:700;color:#1a2332;flex:1}
+    .info-panel-close{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:2px;line-height:1}
+    .info-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9}
+    .info-row:last-child{border-bottom:none}
+    .info-key{font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .info-val{font-size:11px;font-weight:700;color:#1a2332}
+    .info-section{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;font-weight:700;margin:8px 0 4px;padding-top:6px;border-top:1px solid #e5e7eb}
+
+    /* ── Layer toggles ── */
+    .layer-bar{
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;
+      display:flex;gap:4px;padding:5px 6px;
+      background:rgba(255,255,255,0.92);border:1px solid #dfe3ea;border-radius:12px;
+      backdrop-filter:blur(12px);box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    }
+    .layer-btn{
+      padding:5px 12px;border-radius:8px;border:1px solid transparent;
+      background:transparent;cursor:pointer;font-size:11px;font-weight:600;
+      font-family:inherit;transition:all .15s;color:#5f6b7a;
+    }
+    .layer-btn.active{color:#fff;border-color:transparent}
+    .layer-btn:hover{background:#f0f4f8}
+
+    /* ── Scale bar ── */
+    .scale-bar{
+      position:fixed;bottom:20px;right:200px;z-index:100;
+      display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+      pointer-events:none;
+    }
+    .scale-label{font-size:9px;font-weight:700;color:#1a2332;background:rgba(255,255,255,0.75);padding:1px 4px;border-radius:3px}
+    .scale-svg{display:block}
   </style>
 </head>
 <body>
@@ -163,6 +206,32 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
   </div>
 
   <div class="watermark">Gerado com NetPlanner</div>
+
+  <!-- Info panel -->
+  <div class="info-panel" id="info-panel">
+    <div class="info-panel-header">
+      <div class="info-panel-icon" id="info-icon">📷</div>
+      <div class="info-panel-title" id="info-title">Equipamento</div>
+      <button class="info-panel-close" onclick="closeInfoPanel()">✕</button>
+    </div>
+    <div id="info-body"></div>
+  </div>
+
+  <!-- Layer toggles -->
+  <div class="layer-bar">
+    <button class="layer-btn active" id="layer-cftv" style="background:#dc2626" onclick="toggleLayer('cftv',this)">📹 CFTV</button>
+    <button class="layer-btn active" id="layer-rede" style="background:#d97706" onclick="toggleLayer('rede',this)">🔌 Rede</button>
+    <button class="layer-btn active" id="layer-wifi" style="background:#2563eb" onclick="toggleLayer('wifi',this)">📶 Wi-Fi</button>
+  </div>
+
+  <!-- Scale bar -->
+  <div class="scale-bar" id="scale-bar">
+    <span class="scale-label" id="scale-label">10m</span>
+    <svg class="scale-svg" id="scale-svg" width="100" height="10">
+      <rect x="0" y="2" width="100" height="6" fill="rgba(255,255,255,0.7)" stroke="#1a2332" stroke-width="1.5"/>
+      <rect x="0" y="2" width="50" height="6" fill="#1a2332"/>
+    </svg>
+  </div>
 
   <script type="importmap">
   {
@@ -491,6 +560,10 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
         // 3D equipment body
         const eqGroup = build3DEquip(el.type, sz, color, x, z, rotY);
         eqGroup.userData.isEquip = true;
+        eqGroup.userData.el = el;
+        const layerMap = { camera: 'cftv', nvr: 'cftv', switch: 'rede', router: 'rede', wifi: 'wifi' };
+        eqGroup.userData.layer = layerMap[el.type] || 'rede';
+        disc.userData.layer = eqGroup.userData.layer;
         pageGroup.add(eqGroup);
 
         // Label
@@ -579,6 +652,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
       });
 
       // Connections
+      const CABLE_COLORS = { 'CAT5e':0x94a3b8,'CAT6':0x64748b,'CAT6A':0x475569,'CAT7':0x334155,'Fibra OM3':0xeab308,'Coaxial':0x3b82f6,'PoE':0x22c55e };
       pg.connections.forEach(cn => {
         const from = pg.elements.find(e => e.id === cn.from);
         const to   = pg.elements.find(e => e.id === cn.to);
@@ -588,7 +662,8 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
           new THREE.Vector3(to.x   * S, 0.08, to.y   * S)
         ];
         const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const mat = new THREE.LineDashedMaterial({ color: 0x475569, dashSize: 0.14, gapSize: 0.08, linewidth: 1 });
+        const cableColor = CABLE_COLORS[cn.cableType] || 0x64748b;
+        const mat = new THREE.LineDashedMaterial({ color: cableColor, dashSize: 0.14, gapSize: 0.08, linewidth: 1 });
         const line = new THREE.Line(geo, mat);
         line.computeLineDistances();
         pageGroup.add(line);
@@ -606,6 +681,117 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
     /* ── Initial render ── */
     renderPage(0);
 
+    /* ── Raycaster for click info panel ── */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const infoPanel = document.getElementById('info-panel');
+    const infoBody = document.getElementById('info-body');
+    const infoTitle = document.getElementById('info-title');
+    const infoIcon = document.getElementById('info-icon');
+    const EQUIP_ICONS = { camera:'📷', wifi:'📶', switch:'🔌', router:'🌐', nvr:'💾' };
+
+    window.closeInfoPanel = function() { infoPanel.classList.remove('open'); };
+
+    function openInfoPanel(el) {
+      const meta = EQ_META[el.type] || {};
+      infoIcon.style.background = (meta.color || '#888') + '22';
+      infoIcon.textContent = EQUIP_ICONS[el.type] || '📦';
+      infoTitle.textContent = el.label || el.type;
+      let html = '<div class="info-row"><span class="info-key">Tipo</span><span class="info-val">' + (meta.label || el.type) + '</span></div>';
+      if (el.notes) html += '<div class="info-row"><span class="info-key">Obs.</span><span class="info-val" style="font-size:10px;max-width:150px;text-align:right">' + el.notes + '</span></div>';
+      if (el.type === 'camera' && el.cameraSpec) {
+        const s = el.cameraSpec;
+        html += '<div class="info-section">Câmera / DORI</div>';
+        html += '<div class="info-row"><span class="info-key">Resolução</span><span class="info-val">' + s.resolutionH + '×' + s.resolutionV + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">FoV H</span><span class="info-val">' + (s.fovH||0).toFixed(1) + '°</span></div>';
+        html += '<div class="info-row"><span class="info-key">Codec</span><span class="info-val">' + s.codec + '</span></div>';
+        if (s.doriDistances) {
+          const d = s.doriDistances;
+          html += '<div class="info-row"><span class="info-key">Detection</span><span class="info-val">' + (d.detection||0).toFixed(1) + 'm</span></div>';
+          html += '<div class="info-row"><span class="info-key">Recognition</span><span class="info-val">' + (d.recognition||0).toFixed(1) + 'm</span></div>';
+          html += '<div class="info-row"><span class="info-key">Identification</span><span class="info-val">' + (d.identification||0).toFixed(1) + 'm</span></div>';
+        }
+      } else if (el.type === 'wifi' && el.wifiSpec) {
+        const s = el.wifiSpec;
+        html += '<div class="info-section">Wi-Fi</div>';
+        if (s.brand||s.model) html += '<div class="info-row"><span class="info-key">Modelo</span><span class="info-val">' + [s.brand,s.model].filter(Boolean).join(' ') + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Padrão</span><span class="info-val">' + s.standard + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Frequência</span><span class="info-val">' + s.frequency + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Clientes</span><span class="info-val">' + s.maxClients + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">TX Power</span><span class="info-val">' + s.txPower + ' dBm</span></div>';
+      } else if (el.type === 'switch' && el.switchSpec) {
+        const s = el.switchSpec;
+        html += '<div class="info-section">Switch</div>';
+        if (s.brand||s.model) html += '<div class="info-row"><span class="info-key">Modelo</span><span class="info-val">' + [s.brand,s.model].filter(Boolean).join(' ') + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Portas</span><span class="info-val">' + s.ports + ' × ' + s.speed + '</span></div>';
+        if (s.poe) html += '<div class="info-row"><span class="info-key">PoE Budget</span><span class="info-val">' + s.poeBudget + 'W</span></div>';
+        html += '<div class="info-row"><span class="info-key">Gerenciável</span><span class="info-val">' + (s.managed?'Sim':'Não') + '</span></div>';
+      } else if (el.type === 'router' && el.routerSpec) {
+        const s = el.routerSpec;
+        html += '<div class="info-section">Roteador</div>';
+        if (s.brand||s.model) html += '<div class="info-row"><span class="info-key">Modelo</span><span class="info-val">' + [s.brand,s.model].filter(Boolean).join(' ') + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">WAN</span><span class="info-val">' + s.wanType + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Velocidade</span><span class="info-val">' + s.wanSpeed + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Portas LAN</span><span class="info-val">' + s.lanPorts + '</span></div>';
+      } else if (el.type === 'nvr' && el.nvrSpec) {
+        const s = el.nvrSpec;
+        html += '<div class="info-section">NVR / DVR</div>';
+        if (s.brand||s.model) html += '<div class="info-row"><span class="info-key">Modelo</span><span class="info-val">' + [s.brand,s.model].filter(Boolean).join(' ') + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Canais</span><span class="info-val">' + s.channels + ' ch</span></div>';
+        html += '<div class="info-row"><span class="info-key">Storage</span><span class="info-val">' + s.storage + '</span></div>';
+        html += '<div class="info-row"><span class="info-key">Resolução</span><span class="info-val">' + s.maxResolution + '</span></div>';
+      }
+      infoBody.innerHTML = html;
+      infoPanel.classList.add('open');
+    }
+
+    renderer.domElement.addEventListener('click', e => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(pageGroup ? pageGroup.children : [], true);
+      let found = null;
+      for (const hit of hits) {
+        let obj = hit.object;
+        while (obj && !obj.userData.isEquip) obj = obj.parent;
+        if (obj && obj.userData.isEquip && obj.userData.el) { found = obj.userData.el; break; }
+      }
+      if (found) openInfoPanel(found); else closeInfoPanel();
+    });
+
+    /* ── Layer visibility ── */
+    const layerState = { cftv: true, rede: true, wifi: true };
+    window.toggleLayer = function(layer, btn) {
+      layerState[layer] = !layerState[layer];
+      btn.classList.toggle('active', layerState[layer]);
+      if (!layerState[layer]) btn.style.background = '';
+      else { const cols = { cftv:'#dc2626', rede:'#d97706', wifi:'#2563eb' }; btn.style.background = cols[layer]; }
+      if (!pageGroup) return;
+      pageGroup.children.forEach(obj => {
+        const l = obj.userData && obj.userData.layer;
+        if (l && layerState[l] === false) obj.visible = false;
+        else if (l) obj.visible = true;
+      });
+    };
+
+    /* ── Scale bar update ── */
+    const scaleLabel = document.getElementById('scale-label');
+    const scaleSvg = document.getElementById('scale-svg');
+    const SCALE = ${JSON.stringify(scale)};
+    const roundMeters = [1,2,5,10,20,50,100,200,500];
+    function updateScaleBar() {
+      const p1 = new THREE.Vector3(0,0,0), p2 = new THREE.Vector3(10*SCALE,0,0);
+      p1.project(camera); p2.project(camera);
+      const pxPer10m = Math.abs(p2.x - p1.x) * window.innerWidth / 2;
+      const pxPerM = pxPer10m / 10;
+      const barM = roundMeters.find(m => m * pxPerM > 50) || roundMeters[roundMeters.length-1];
+      const barPx = Math.round(barM * pxPerM);
+      scaleLabel.textContent = barM + 'm';
+      scaleSvg.setAttribute('width', barPx + 4);
+      scaleSvg.innerHTML = '<rect x="0" y="2" width="' + (barPx) + '" height="6" fill="rgba(255,255,255,0.7)" stroke="#1a2332" stroke-width="1.5"/><rect x="0" y="2" width="' + Math.round(barPx/2) + '" height="6" fill="#1a2332"/>';
+    }
+
     /* ── Animation loop ── */
     const clock = new THREE.Clock();
     function animate() {
@@ -621,6 +807,7 @@ export function generateViewerHTML(projectName, pages, clientInfo, scale, compan
 
       controls.update();
       updateLabels();
+      updateScaleBar();
       renderer.render(scene, camera);
     }
     animate();
