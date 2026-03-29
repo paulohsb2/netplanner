@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { jsPDF } from "jspdf";
 import {
   Camera, Wifi, Network, Router, HardDrive, Upload, Download,
   Undo2, Redo2, Trash2, Copy, Ruler, Move, MousePointer, Plus, Minus,
   X, Eye, EyeOff, FileImage, FileText,
   Maximize2, Save, FolderOpen, Grid3X3, Layers,
-  Link2, Image, Building2
+  Link2, Image, Building2, Box
 } from "lucide-react";
+import { generateViewerHTML } from "./htmlExport";
+const Scene3D = lazy(() => import("./Scene3D"));
 
 /* ═══ CONSTANTS ═══ */
 const EQUIPMENT = [
@@ -141,6 +143,7 @@ export default function NetPlanner() {
   const [cableStart, setCableStart] = useState(null);
   const [nextNumbers, setNextNumbers] = useState({ camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 });
   const [pdfDialog, setPdfDialog] = useState(false);
+  const [view3D, setView3D] = useState(false);
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -431,6 +434,16 @@ export default function NetPlanner() {
   const saveProject = () => { const d = { projectName, pages, clientInfo, companyLogo, watermarkOpacity, scale, nextNumbers, version: "2.1" }; const b = new Blob([JSON.stringify(d)], { type: "application/json" }); const a = document.createElement("a"); a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}.json`; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href); };
   const loadProject = () => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId((d.pages || [])[0]?.id || "page-1"); setProjectName(d.projectName || "Projeto"); setClientInfo(d.clientInfo || { name: "", address: "", phone: "", email: "" }); setCompanyLogo(d.companyLogo || null); setWatermarkOpacity(d.watermarkOpacity ?? 0.06); setScale(d.scale || 0.05); setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 }); setUndoStack([]); setRedoStack([]); setSelectedId(null); } catch { alert("Erro ao carregar."); } }; i.click(); };
 
+  const exportHTML = () => {
+    const html = generateViewerHTML(projectName, pages, clientInfo, scale, companyLogo);
+    const b = new Blob([html], { type: "text/html" });
+    const a = document.createElement("a");
+    a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}_3D.html`;
+    a.href = URL.createObjectURL(b);
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   const sel = elements.find(e => e.id === selectedId);
   const selEq = sel ? EQUIPMENT.find(eq => eq.type === sel.type) : null;
 
@@ -549,6 +562,9 @@ export default function NetPlanner() {
           <button onClick={loadProject} style={btnS()} title="Abrir"><FolderOpen size={13} /></button>
           <button onClick={exportPNG} style={btnS()} disabled={!page.bgImage}><Download size={13} /> PNG</button>
           <button onClick={() => setPdfDialog(true)} style={{ ...btnS(), background: pages.some(p => p.bgImage) ? T.accent : "transparent", color: pages.some(p => p.bgImage) ? "#fff" : T.textDim, borderRadius: "7px" }} disabled={!pages.some(p => p.bgImage)}><FileText size={13} /> PDF</button>
+          <button onClick={exportHTML} style={btnS()} title="Exportar visualizador 3D (HTML standalone)"><Box size={13} /> HTML 3D</button>
+          <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
+          <button onClick={() => setView3D(v => !v)} style={{ ...btnS(view3D), background: view3D ? "#0f172a" : "transparent", color: view3D ? "#60a5fa" : T.textMuted, border: view3D ? "1.5px solid #1e3a5f" : "none" }} title={view3D ? "Voltar ao 2D" : "Visualizar em 3D"}><Box size={13} /> {view3D ? "2D" : "3D"}</button>
           <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
           <button onClick={() => { setTool("select"); setCableStart(null); }} style={btnS(tool === "select")}><MousePointer size={13} /></button>
           <button onClick={() => setTool("pan")} style={btnS(tool === "pan")}><Move size={13} /></button>
@@ -566,7 +582,7 @@ export default function NetPlanner() {
           </div>
         </div>
 
-        {tool !== "select" && (
+        {tool !== "select" && !view3D && (
           <div style={{ padding: "5px 14px", fontSize: "11px", borderBottom: `1px solid ${T.borderLight}`, display: "flex", alignItems: "center", gap: "5px", background: tool === "measure" || tool === "calibrate" ? "#fffbeb" : tool === "cable" ? "#f0f9ff" : T.accentLight, color: tool === "measure" || tool === "calibrate" ? "#92400e" : tool === "cable" ? "#0369a1" : T.accent }}>
             {tool.startsWith("place:") && <><Plus size={11} /> Clique na planta para posicionar. Esc cancela.</>}
             {tool === "measure" && <><Ruler size={11} /> {!measurePoints.length ? "Clique no ponto inicial." : "Clique no ponto final."}</>}
@@ -576,7 +592,26 @@ export default function NetPlanner() {
           </div>
         )}
 
-        <div ref={containerRef} style={{ flex: 1, overflow: "hidden", position: "relative", background: T.canvas, cursor: tool === "pan" ? "grab" : tool === "measure" || tool === "calibrate" ? "crosshair" : tool === "cable" ? "cell" : tool.startsWith("place:") ? "copy" : "default" }}
+        {view3D && (
+          <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#060c18" }}>
+            <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#60a5fa", fontSize: "14px" }}>Carregando 3D...</div>}>
+              <Scene3D
+                page={page}
+                elements={elements}
+                connections={connections}
+                measureLines={measureLines}
+                scale={scale}
+                showCoverage={showCoverage}
+                showCables={showCables}
+                layerVisibility={layerVisibility}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            </Suspense>
+          </div>
+        )}
+
+        <div ref={containerRef} style={{ flex: 1, overflow: "hidden", position: "relative", background: T.canvas, cursor: tool === "pan" ? "grab" : tool === "measure" || tool === "calibrate" ? "crosshair" : tool === "cable" ? "cell" : tool.startsWith("place:") ? "copy" : "default", display: view3D ? "none" : undefined }}
           onMouseDown={startPan} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
           {!page.bgImage ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "14px" }}>

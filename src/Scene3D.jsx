@@ -1,0 +1,628 @@
+/**
+ * NetPlanner 3D Scene
+ * React Three Fiber scene — orbit, zoom, full 3D visualization
+ */
+
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Html, Line } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import * as THREE from "three";
+import { useRef, useMemo, useEffect, useState } from "react";
+
+/* ─── constants ─── */
+const S = 0.01;           // 1 pixel = 0.01 world units
+const EQ_H = 0.22;        // equipment marker center height
+const CONE_H = 4.5;       // camera cone height (ceiling to floor)
+const SIZES = { small: 0.16, medium: 0.22, large: 0.30 };
+
+const EQUIPMENT = [
+  { type: "camera",  color: "#ef4444", layer: "cftv" },
+  { type: "wifi",    color: "#3b82f6", layer: "wifi" },
+  { type: "switch",  color: "#f59e0b", layer: "rede" },
+  { type: "router",  color: "#a855f7", layer: "rede" },
+  { type: "nvr",     color: "#10b981", layer: "cftv" },
+];
+
+/* ─── camera cone sector geometry ─── */
+function buildSectorGeo(radius, height, angleRad, segs = 48) {
+  if (angleRad >= Math.PI * 2 - 0.01) {
+    return new THREE.ConeGeometry(radius, height, segs, 1, true);
+  }
+  const steps = Math.max(6, Math.round(segs * angleRad / (Math.PI * 2)));
+  const verts = [], idx = [];
+  verts.push(0, 0, 0); // tip at index 0
+  for (let i = 0; i <= steps; i++) {
+    const a = -angleRad / 2 + (angleRad * i / steps);
+    verts.push(radius * Math.cos(a), -height, radius * Math.sin(a));
+  }
+  const cBase = verts.length / 3;
+  verts.push(0, -height, 0);
+  for (let i = 0; i < steps; i++) {
+    idx.push(0, i + 2, i + 1);       // side face
+    idx.push(cBase, i + 1, i + 2);   // base cap
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/* ─── flat sector (floor footprint) ─── */
+function buildFloorSectorGeo(radius, angleRad, segs = 48) {
+  if (angleRad >= Math.PI * 2 - 0.01) {
+    return new THREE.CircleGeometry(radius, segs);
+  }
+  const steps = Math.max(6, Math.round(segs * angleRad / (Math.PI * 2)));
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  for (let i = 0; i <= steps; i++) {
+    const a = -angleRad / 2 + (angleRad * i / steps);
+    const fn = i === 0 ? "lineTo" : "lineTo";
+    shape[fn](radius * Math.cos(a), radius * Math.sin(a));
+  }
+  shape.lineTo(0, 0);
+  return new THREE.ShapeGeometry(shape, steps);
+}
+
+/* ═══════════════════════════════════
+   FLOOR PLANE
+═══════════════════════════════════ */
+function FloorPlane({ bgImage, width, height }) {
+  const [tex, setTex] = useState(null);
+
+  useEffect(() => {
+    if (!bgImage) { setTex(null); return; }
+    const loader = new THREE.TextureLoader();
+    loader.load(bgImage, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      setTex(t);
+    });
+  }, [bgImage]);
+
+  return (
+    <group>
+      {/* Dark base plate — extends beyond image */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[width / 2, -0.02, height / 2]}>
+        <planeGeometry args={[width * 1.6, height * 1.6]} />
+        <meshStandardMaterial color="#0d1117" roughness={1} />
+      </mesh>
+
+      {/* Floor plan image */}
+      {tex && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[width / 2, 0, height / 2]}>
+          <planeGeometry args={[width, height]} />
+          <meshStandardMaterial
+            map={tex}
+            transparent
+            roughness={0.85}
+            metalness={0.0}
+            opacity={0.92}
+          />
+        </mesh>
+      )}
+
+      {/* Subtle border glow around floor plan */}
+      {tex && (
+        <lineSegments position={[width / 2, 0.01, height / 2]}>
+          <edgesGeometry
+            args={[new THREE.PlaneGeometry(width, height)]}
+          />
+          <lineBasicMaterial color="#334155" transparent opacity={0.5} />
+        </lineSegments>
+      )}
+    </group>
+  );
+}
+
+/* ═══════════════════════════════════
+   EQUIPMENT MARKER
+═══════════════════════════════════ */
+function EquipMarker({ el, color, selected, onSelect }) {
+  const x = el.x * S;
+  const z = el.y * S;
+  const sz = SIZES[el.size || "medium"];
+  const sphereRef = useRef();
+  const ringRef = useRef();
+
+  useFrame(({ clock }) => {
+    if (!sphereRef.current) return;
+    const t = clock.elapsedTime;
+    sphereRef.current.material.emissiveIntensity = selected
+      ? 0.7 + 0.25 * Math.sin(t * 3.5)
+      : 0.25 + 0.1 * Math.sin(t * 1.5);
+    if (ringRef.current) {
+      ringRef.current.material.opacity = 0.5 + 0.4 * Math.sin(t * 3.5);
+    }
+  });
+
+  return (
+    <group position={[x, 0, z]}>
+      {/* Base disc (shadow/ground contact) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
+        <circleGeometry args={[sz * 1.1, 32]} />
+        <meshStandardMaterial
+          color={color}
+          transparent
+          opacity={0.18}
+          emissive={color}
+          emissiveIntensity={0.3}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Equipment sphere */}
+      <mesh
+        position={[0, EQ_H, 0]}
+        ref={sphereRef}
+        onClick={(e) => { e.stopPropagation(); onSelect(el.id); }}
+        castShadow
+      >
+        <sphereGeometry args={[sz, 24, 24]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.25}
+          metalness={0.35}
+          roughness={0.3}
+        />
+      </mesh>
+
+      {/* Selection ring */}
+      {selected && (
+        <mesh
+          ref={ringRef}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0.01, 0]}
+        >
+          <ringGeometry args={[sz * 1.3, sz * 1.7, 36]} />
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={1.2}
+            transparent
+            opacity={0.7}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      {/* Label */}
+      <Html
+        position={[0, EQ_H + sz + 0.2, 0]}
+        center
+        distanceFactor={14}
+        zIndexRange={[100, 200]}
+        occlude={false}
+      >
+        <div
+          style={{
+            background: "rgba(10,15,30,0.92)",
+            color: "#f1f5f9",
+            padding: "2px 8px 3px",
+            borderRadius: "5px",
+            fontSize: "11px",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            border: `1px solid ${color}60`,
+            fontFamily: "system-ui,sans-serif",
+            pointerEvents: "none",
+            letterSpacing: "0.3px",
+            boxShadow: `0 0 10px ${color}30`,
+          }}
+        >
+          {el.label}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+/* ═══════════════════════════════════
+   CAMERA / CFTV COVERAGE CONE
+═══════════════════════════════════ */
+function CameraCone({ el, color }) {
+  const x = el.x * S;
+  const z = el.y * S;
+  const radius = (el.radius || 80) * S;
+  const angleRad = ((el.angle || 90) * Math.PI) / 180;
+  const rotY = -((el.rotation || 0) * Math.PI) / 180;
+
+  const sideGeo = useMemo(
+    () => buildSectorGeo(radius, CONE_H, angleRad),
+    [radius, angleRad]
+  );
+  const footGeo = useMemo(
+    () => buildFloorSectorGeo(radius, angleRad),
+    [radius, angleRad]
+  );
+
+  return (
+    <group position={[x, CONE_H, z]} rotation={[0, rotY, 0]}>
+      {/* Filled volume */}
+      <mesh geometry={sideGeo}>
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.15}
+          transparent
+          opacity={0.07}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Wireframe skeleton */}
+      <mesh geometry={sideGeo}>
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.6}
+          transparent
+          opacity={0.28}
+          wireframe
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Floor footprint */}
+      <mesh
+        geometry={footGeo}
+        position={[0, -CONE_H + 0.03, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.22}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ═══════════════════════════════════
+   WIFI / AP COVERAGE RINGS
+═══════════════════════════════════ */
+function WifiRings({ el, color }) {
+  const x = el.x * S;
+  const z = el.y * S;
+  const radius = (el.radius || 120) * S;
+  const ringsRef = useRef([]);
+
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    ringsRef.current.forEach((m, i) => {
+      if (m) m.material.opacity = 0.15 + 0.12 * Math.sin(t * 1.8 + i * 1.2);
+    });
+  });
+
+  const rings = [1, 0.66, 0.33];
+
+  return (
+    <group position={[x, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Filled disk */}
+      <mesh>
+        <circleGeometry args={[radius, 64]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.3}
+          transparent
+          opacity={0.08}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Concentric glowing rings */}
+      {rings.map((r, i) => (
+        <mesh
+          key={i}
+          ref={(m) => (ringsRef.current[i] = m)}
+        >
+          <ringGeometry
+            args={[radius * r - 0.04, radius * r, 72]}
+          />
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={0.9}
+            transparent
+            opacity={0.3}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ═══════════════════════════════════
+   CONNECTION CABLE LINE
+═══════════════════════════════════ */
+function CableLine({ from, to }) {
+  const p1 = useMemo(
+    () => new THREE.Vector3(from.x * S, 0.08, from.y * S),
+    [from.x, from.y]
+  );
+  const p2 = useMemo(
+    () => new THREE.Vector3(to.x * S, 0.08, to.y * S),
+    [to.x, to.y]
+  );
+
+  return (
+    <Line
+      points={[p1, p2]}
+      color="#475569"
+      lineWidth={1.2}
+      dashed
+      dashSize={0.14}
+      gapSize={0.08}
+    />
+  );
+}
+
+/* ═══════════════════════════════════
+   MEASURE LINE 3D
+═══════════════════════════════════ */
+function MeasureLine3D({ ml, metricScale }) {
+  const p1v = useMemo(
+    () => new THREE.Vector3(ml.p1.x * S, 0.12, ml.p1.y * S),
+    [ml.p1.x, ml.p1.y]
+  );
+  const p2v = useMemo(
+    () => new THREE.Vector3(ml.p2.x * S, 0.12, ml.p2.y * S),
+    [ml.p2.x, ml.p2.y]
+  );
+  const mid = useMemo(
+    () => new THREE.Vector3().addVectors(p1v, p2v).multiplyScalar(0.5),
+    [p1v, p2v]
+  );
+  const label = `${(ml.dist * metricScale).toFixed(1)}m`;
+
+  return (
+    <>
+      <Line
+        points={[p1v, p2v]}
+        color="#f59e0b"
+        lineWidth={1.8}
+        dashed
+        dashSize={0.1}
+        gapSize={0.06}
+      />
+      {[p1v, p2v].map((p, i) => (
+        <mesh key={i} position={p.toArray()}>
+          <sphereGeometry args={[0.04, 8, 8]} />
+          <meshStandardMaterial
+            color="#f59e0b"
+            emissive="#f59e0b"
+            emissiveIntensity={0.8}
+          />
+        </mesh>
+      ))}
+      <Html
+        position={mid.toArray()}
+        center
+        distanceFactor={12}
+        zIndexRange={[50, 100]}
+      >
+        <div
+          style={{
+            background: "rgba(10,15,30,0.9)",
+            color: "#fbbf24",
+            padding: "2px 7px",
+            borderRadius: "4px",
+            fontSize: "11px",
+            fontWeight: 700,
+            border: "1px solid #f59e0b50",
+            fontFamily: "system-ui,sans-serif",
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+        </div>
+      </Html>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════ */
+function EmptyPrompt() {
+  return (
+    <Html position={[0, 0, 0]} center fullscreen>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(15,23,42,0.85)",
+            border: "1px solid #334155",
+            borderRadius: "16px",
+            padding: "32px 40px",
+            textAlign: "center",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌐</div>
+          <div
+            style={{
+              color: "#e2e8f0",
+              fontSize: "16px",
+              fontWeight: 700,
+              marginBottom: "8px",
+              fontFamily: "system-ui,sans-serif",
+            }}
+          >
+            Modo 3D
+          </div>
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+              fontFamily: "system-ui,sans-serif",
+            }}
+          >
+            Carregue uma planta e adicione equipamentos no modo 2D
+            <br />
+            para visualizar aqui em 3D
+          </div>
+        </div>
+      </div>
+    </Html>
+  );
+}
+
+/* ═══════════════════════════════════
+   MAIN SCENE
+═══════════════════════════════════ */
+export default function Scene3D({
+  page,
+  elements,
+  connections,
+  measureLines,
+  scale,
+  showCoverage,
+  showCables,
+  layerVisibility,
+  selectedId,
+  onSelect,
+}) {
+  const bgW = (page?.bgNatural?.w || 800) * S;
+  const bgH = (page?.bgNatural?.h || 600) * S;
+  const hasContent = page?.bgImage || elements.length > 0;
+
+  const visibleEls = elements.filter((el) => {
+    const eq = EQUIPMENT.find((e) => e.type === el.type);
+    return eq && layerVisibility[eq.layer] !== false;
+  });
+
+  // Camera start position: above and angled
+  const camPos = useMemo(
+    () => [bgW * 0.5, bgW * 0.85, bgH + bgH * 0.6],
+    [bgW, bgH]
+  );
+  const target = useMemo(() => [bgW / 2, 0, bgH / 2], [bgW, bgH]);
+
+  return (
+    <Canvas
+      style={{ width: "100%", height: "100%", background: "#060c18" }}
+      camera={{ position: camPos, fov: 48, near: 0.01, far: 1000 }}
+      shadows
+    >
+      <color attach="background" args={["#060c18"]} />
+      <fog attach="fog" args={["#060c18", bgW * 4, bgW * 10]} />
+
+      {/* Lighting */}
+      <ambientLight intensity={0.4} color="#c8d8f0" />
+      <directionalLight
+        position={[bgW, bgW * 1.2, bgH]}
+        intensity={0.6}
+        color="#ffffff"
+        castShadow
+      />
+      <pointLight
+        position={[bgW / 2, bgW * 0.4, bgH / 2]}
+        intensity={0.5}
+        color="#3b82f6"
+        distance={bgW * 3}
+      />
+      <pointLight
+        position={[0, bgW * 0.3, 0]}
+        intensity={0.3}
+        color="#8b5cf6"
+        distance={bgW * 2}
+      />
+
+      {/* Controls */}
+      <OrbitControls
+        target={target}
+        maxPolarAngle={Math.PI / 2.05}
+        minDistance={0.5}
+        maxDistance={bgW * 5}
+        enableDamping
+        dampingFactor={0.06}
+      />
+
+      {/* Floor */}
+      <FloorPlane bgImage={page?.bgImage} width={bgW} height={bgH} />
+
+      {/* Grid */}
+      <gridHelper
+        args={[
+          Math.max(bgW, bgH) * 2,
+          28,
+          "#1a2744",
+          "#0f1a2e",
+        ]}
+        position={[bgW / 2, -0.005, bgH / 2]}
+      />
+
+      {!hasContent && <EmptyPrompt />}
+
+      {/* Equipment markers */}
+      {visibleEls.map((el) => {
+        const eq = EQUIPMENT.find((e) => e.type === el.type);
+        const color = el.customColor || eq.color;
+        return (
+          <EquipMarker
+            key={el.id}
+            el={el}
+            color={color}
+            selected={selectedId === el.id}
+            onSelect={onSelect}
+          />
+        );
+      })}
+
+      {/* Coverage zones */}
+      {showCoverage &&
+        visibleEls
+          .filter((el) => el.radius > 0 && el.angle > 0)
+          .map((el) => {
+            const eq = EQUIPMENT.find((e) => e.type === el.type);
+            const color = el.customColor || eq.color;
+            if (el.type === "camera" || el.type === "nvr") {
+              return <CameraCone key={`cov-${el.id}`} el={el} color={color} />;
+            }
+            return <WifiRings key={`cov-${el.id}`} el={el} color={color} />;
+          })}
+
+      {/* Cables */}
+      {showCables &&
+        connections.map((cn) => {
+          const from = elements.find((e) => e.id === cn.from);
+          const to = elements.find((e) => e.id === cn.to);
+          if (!from || !to) return null;
+          return <CableLine key={cn.id} from={from} to={to} />;
+        })}
+
+      {/* Measure lines */}
+      {measureLines.map((ml, i) => (
+        <MeasureLine3D key={i} ml={ml} metricScale={scale} />
+      ))}
+
+      {/* Post-processing: bloom glow */}
+      <EffectComposer>
+        <Bloom
+          luminanceThreshold={0.45}
+          luminanceSmoothing={0.85}
+          height={300}
+          intensity={1.2}
+        />
+      </EffectComposer>
+    </Canvas>
+  );
+}
