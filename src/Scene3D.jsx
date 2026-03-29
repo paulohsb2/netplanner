@@ -5,7 +5,6 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, Line } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { useRef, useMemo, useEffect, useState } from "react";
 
@@ -614,15 +613,6 @@ export default function Scene3D({
         <MeasureLine3D key={i} ml={ml} metricScale={scale} />
       ))}
 
-      {/* Post-processing: bloom glow */}
-      <EffectComposer>
-        <Bloom
-          luminanceThreshold={0.45}
-          luminanceSmoothing={0.85}
-          height={300}
-          intensity={1.2}
-        />
-      </EffectComposer>
     </Canvas>
   );
 }
