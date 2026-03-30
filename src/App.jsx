@@ -341,6 +341,7 @@ export default function NetPlanner() {
 
   // Auth / Cloud
   const [user, setUser] = useState(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [profile, setProfile] = useState(null);
   const [authModal, setAuthModal] = useState(false);
   const [plansModal, setPlansModal] = useState(false);
@@ -501,11 +502,13 @@ export default function NetPlanner() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) getProfile(session.user.id).then(({ data }) => setProfile(data));
+      setAuthLoaded(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) getProfile(session.user.id).then(({ data }) => setProfile(data));
       else { setProfile(null); setCloudProjectId(null); }
+      setAuthLoaded(true);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1402,6 +1405,24 @@ export default function NetPlanner() {
           </div>
         );
       })()}
+
+      {/* ═══ AUTH GATE ═══ */}
+      {authLoaded && !user && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99998, background: "rgba(15,23,42,0.92)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "40px 48px", maxWidth: "440px", width: "90%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
+            <div style={{ width: "56px", height: "56px", background: "#2563eb", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </div>
+            <h2 style={{ margin: "0 0 8px", fontSize: "22px", fontWeight: 700, color: "#0f172a" }}>NetPlanner</h2>
+            <p style={{ margin: "0 0 6px", fontSize: "14px", color: "#64748b" }}>Editor profissional de plantas de redes CFTV e infraestrutura.</p>
+            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "#94a3b8" }}>Crie uma conta grátis para começar. Plano gratuito inclui 2 projetos.</p>
+            <button onClick={() => setAuthModal(true)} style={{ width: "100%", padding: "13px", borderRadius: "10px", border: "none", cursor: "pointer", background: "#2563eb", color: "#fff", fontSize: "15px", fontWeight: 700, boxShadow: "0 4px 12px rgba(37,99,235,0.35)", marginBottom: "12px" }}>
+              Entrar / Criar conta grátis
+            </button>
+            <p style={{ margin: 0, fontSize: "11px", color: "#cbd5e1" }}>Ao continuar você concorda com os Termos de Uso.</p>
+          </div>
+        </div>
+      )}
 
       {/* ═══ AUTH / CLOUD MODALS ═══ */}
       {authModal && <AuthModal onClose={() => setAuthModal(false)} />}
