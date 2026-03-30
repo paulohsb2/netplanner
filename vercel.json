@@ -1,0 +1,25 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "env": {
+    "VITE_SUPABASE_URL": "@vite_supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+    "VITE_STRIPE_PUBLISHABLE_KEY": "@vite_stripe_publishable_key",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "STRIPE_PRICE_BASIC": "@stripe_price_basic",
+    "STRIPE_PRICE_PRO": "@stripe_price_pro",
+    "STRIPE_PRICE_ENTERPRISE": "@stripe_price_enterprise"
+  }
+}
