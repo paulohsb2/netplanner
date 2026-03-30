@@ -1406,7 +1406,7 @@ export default function NetPlanner() {
         );
       })()}
 
-      {/* ═══ AUTH GATE ═══ */}
+      {/* ═══ AUTH GATE — não logado ═══ */}
       {authLoaded && !user && (
         <div style={{ position: "fixed", inset: 0, zIndex: 99998, background: "rgba(15,23,42,0.92)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "16px", padding: "40px 48px", maxWidth: "440px", width: "90%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
@@ -1415,11 +1415,45 @@ export default function NetPlanner() {
             </div>
             <h2 style={{ margin: "0 0 8px", fontSize: "22px", fontWeight: 700, color: "#0f172a" }}>NetPlanner</h2>
             <p style={{ margin: "0 0 6px", fontSize: "14px", color: "#64748b" }}>Editor profissional de plantas de redes CFTV e infraestrutura.</p>
-            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "#94a3b8" }}>Crie uma conta grátis para começar. Plano gratuito inclui 2 projetos.</p>
+            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "#94a3b8" }}>Assine um dos planos para ter acesso completo ao sistema.</p>
             <button onClick={() => setAuthModal(true)} style={{ width: "100%", padding: "13px", borderRadius: "10px", border: "none", cursor: "pointer", background: "#2563eb", color: "#fff", fontSize: "15px", fontWeight: 700, boxShadow: "0 4px 12px rgba(37,99,235,0.35)", marginBottom: "12px" }}>
-              Entrar / Criar conta grátis
+              Entrar / Criar conta
             </button>
             <p style={{ margin: 0, fontSize: "11px", color: "#cbd5e1" }}>Ao continuar você concorda com os Termos de Uso.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ PLAN GATE — logado mas sem plano pago ═══ */}
+      {authLoaded && user && profile && profile.plan === "free" && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99997, background: "rgba(15,23,42,0.88)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "36px 44px", maxWidth: "480px", width: "90%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
+            <h2 style={{ margin: "0 0 8px", fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>Acesso restrito</h2>
+            <p style={{ margin: "0 0 6px", fontSize: "14px", color: "#64748b" }}>
+              Olá, <strong>{user.email?.split("@")[0]}</strong>! Para acessar o NetPlanner é necessário um plano ativo.
+            </p>
+            <p style={{ margin: "0 0 24px", fontSize: "13px", color: "#94a3b8" }}>Escolha o plano ideal para o seu perfil:</p>
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+              {[
+                { id: "basic",      label: "Básico",  price: "R$79/mês",  projects: "10 projetos",  priceId: "price_basic"      },
+                { id: "pro",        label: "Pro",      price: "R$149/mês", projects: "Ilimitado",    priceId: "price_pro", highlight: true },
+                { id: "enterprise", label: "Empresa",  price: "R$299/mês", projects: "Ilimitado",    priceId: "price_enterprise" },
+              ].map(plan => (
+                <div key={plan.id} onClick={() => handleSubscribe(plan.priceId, plan.id)} style={{ flex: 1, border: plan.highlight ? "2px solid #2563eb" : "1.5px solid #e2e8f0", borderRadius: "10px", padding: "14px 10px", cursor: "pointer", background: plan.highlight ? "#eff6ff" : "#fff", transition: "box-shadow .15s" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.15)"}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+                  {plan.highlight && <div style={{ fontSize: "9px", fontWeight: 700, color: "#2563eb", letterSpacing: "0.05em", marginBottom: "6px" }}>MAIS POPULAR</div>}
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>{plan.label}</div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#2563eb", marginBottom: "4px" }}>{plan.price}</div>
+                  <div style={{ fontSize: "11px", color: "#64748b" }}>{plan.projects}</div>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin: "0 0 10px", fontSize: "11px", color: "#94a3b8" }}>7 dias grátis · Cancele quando quiser</p>
+            <button onClick={() => signOut()} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "12px", color: "#94a3b8", textDecoration: "underline" }}>
+              Sair da conta
+            </button>
           </div>
         </div>
       )}
