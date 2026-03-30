@@ -17,9 +17,9 @@ const supabase = createClient(
 
 // Mapeia price ID → plano
 const PRICE_TO_PLAN = {
-  [process.env.STRIPE_PRICE_BASIC]:      "basic",
-  [process.env.STRIPE_PRICE_PRO]:        "pro",
-  [process.env.STRIPE_PRICE_ENTERPRISE]: "enterprise",
+  [process.env.STRIPE_PRICE_BASIC      || "price_1TGgnbGeCkGLlIw1s3i3ObJ7"]: "basic",
+  [process.env.STRIPE_PRICE_PRO        || "price_1TGgnuGeCkGLlIw1577Uoz61"]: "pro",
+  [process.env.STRIPE_PRICE_ENTERPRISE || "price_1TGgoEGeCkGLlIw1zPimEU9V"]: "enterprise",
 };
 
 export const config = {

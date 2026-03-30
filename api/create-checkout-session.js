@@ -8,11 +8,11 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Mapeia os price IDs dos planos (configurar no Stripe Dashboard depois)
+// Mapeia os price IDs dos planos Stripe
 const PRICE_IDS = {
-  price_basic:      process.env.STRIPE_PRICE_BASIC      || "price_basic_placeholder",
-  price_pro:        process.env.STRIPE_PRICE_PRO        || "price_pro_placeholder",
-  price_enterprise: process.env.STRIPE_PRICE_ENTERPRISE || "price_enterprise_placeholder",
+  price_basic:      process.env.STRIPE_PRICE_BASIC      || "price_1TGgnbGeCkGLlIw1s3i3ObJ7",
+  price_pro:        process.env.STRIPE_PRICE_PRO        || "price_1TGgnuGeCkGLlIw1577Uoz61",
+  price_enterprise: process.env.STRIPE_PRICE_ENTERPRISE || "price_1TGgoEGeCkGLlIw1zPimEU9V",
 };
 
 export default async function handler(req, res) {
