@@ -9,10 +9,11 @@ import {
 } from "lucide-react";
 import { generateViewerHTML } from "./htmlExport";
 import { calcAllDori, CAMERA_PRESETS, PRESET_GROUPS, DORI_ZONES, DORI_COLORS, DORI_LABELS, DORI_OPACITIES, defaultCameraSpec, calcStorage } from "./doriCalc";
-import { supabase, signOut, getProfile, saveProject, loadProject, PLAN_LIMITS } from "./supabase";
+import { supabase, signOut, getProfile, saveProject as cloudSaveProject, loadProject as cloudLoadProject, PLAN_LIMITS } from "./supabase";
 import AuthModal from "./AuthModal";
 import PlansModal from "./PlansModal";
 import ProjectsModal from "./ProjectsModal";
+import TermosModal from "./TermosModal";
 
 const defaultWifiSpec = () => ({ standard: "Wi-Fi 6", frequency: "2.4+5", maxClients: 50, txPower: 20, brand: "", model: "" });
 const defaultSwitchSpec = () => ({ ports: 16, speed: "1G", poe: false, poeBudget: 150, managed: false, brand: "", model: "" });
@@ -346,8 +347,11 @@ export default function NetPlanner() {
   const [authModal, setAuthModal] = useState(false);
   const [plansModal, setPlansModal] = useState(false);
   const [projectsModal, setProjectsModal] = useState(false);
-  const [cloudProjectId, setCloudProjectId] = useState(null); // current Supabase project id
+  const [termosModal, setTermosModal] = useState(null); // null | "termos" | "privacidade"
+  const [cloudProjectId, setCloudProjectId] = useState(null);
   const [cloudSaving, setCloudSaving] = useState(false);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -425,7 +429,7 @@ export default function NetPlanner() {
     if (!user) { setAuthModal(true); return; }
     setCloudSaving(true);
     const projectData = { projectName, pages, clientInfo, companyLogo, watermarkOpacity, scale, nextNumbers, version: "2.1" };
-    const { data, error } = await saveProject(user.id, projectName, projectData, cloudProjectId);
+    const { data, error } = await cloudSaveProject(user.id, projectName, projectData, cloudProjectId);
     setCloudSaving(false);
     if (error) { showToast("Erro ao salvar na nuvem: " + error.message, "error"); return; }
     setCloudProjectId(data.id);
@@ -434,8 +438,9 @@ export default function NetPlanner() {
 
   // Cloud load
   const cloudLoad = async (id) => {
-    const { data, error } = await loadProject(id);
-    if (error || !data) { showToast("Erro ao carregar projeto.", "error"); return; }
+    setCloudLoading(true);
+    const { data, error } = await cloudLoadProject(id);
+    if (error || !data) { setCloudLoading(false); showToast("Erro ao carregar projeto.", "error"); return; }
     const d = data.data;
     setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]);
     setCurrentPageId((d.pages || [])[0]?.id || "page-1");
@@ -447,11 +452,13 @@ export default function NetPlanner() {
     setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 });
     setUndoStack([]); setRedoStack([]); setSelectedId(null);
     setCloudProjectId(id);
+    setCloudLoading(false);
     showToast(`Projeto "${d.projectName}" carregado!`, "success");
   };
 
   // Subscribe via Stripe
   const handleSubscribe = async (priceId) => {
+    setSubscribing(true);
     try {
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -463,6 +470,7 @@ export default function NetPlanner() {
       window.location.href = url;
     } catch (e) {
       showToast("Erro ao iniciar checkout: " + e.message, "error");
+      setSubscribing(false);
     }
   };
 
@@ -858,9 +866,9 @@ export default function NetPlanner() {
     setPdfDialog(false);
   };
 
-  /* ─── save/load ─── */
-  const saveProject = () => { const d = { projectName, pages, clientInfo, companyLogo, watermarkOpacity, scale, nextNumbers, version: "2.1" }; const b = new Blob([JSON.stringify(d)], { type: "application/json" }); const a = document.createElement("a"); a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}.json`; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href); };
-  const loadProject = () => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId((d.pages || [])[0]?.id || "page-1"); setProjectName(d.projectName || "Projeto"); setClientInfo(d.clientInfo || { name: "", address: "", phone: "", email: "" }); setCompanyLogo(d.companyLogo || null); setWatermarkOpacity(d.watermarkOpacity ?? 0.06); setScale(d.scale || 0.05); setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 }); setUndoStack([]); setRedoStack([]); setSelectedId(null); } catch { showToast("Erro ao carregar o arquivo. Verifique se é um projeto NetPlanner válido.", "error"); } }; i.click(); };
+  /* ─── save/load local (JSON) ─── */
+  const downloadProjectAsJSON = () => { const d = { projectName, pages, clientInfo, companyLogo, watermarkOpacity, scale, nextNumbers, version: "2.1" }; const b = new Blob([JSON.stringify(d)], { type: "application/json" }); const a = document.createElement("a"); a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}.json`; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href); };
+  const loadProjectFromFile = () => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); setPages(d.pages || [makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId((d.pages || [])[0]?.id || "page-1"); setProjectName(d.projectName || "Projeto"); setClientInfo(d.clientInfo || { name: "", address: "", phone: "", email: "" }); setCompanyLogo(d.companyLogo || null); setWatermarkOpacity(d.watermarkOpacity ?? 0.06); setScale(d.scale || 0.05); setNextNumbers(d.nextNumbers || { camera: 1, wifi: 1, switch: 1, router: 1, nvr: 1 }); setUndoStack([]); setRedoStack([]); setSelectedId(null); } catch { showToast("Erro ao carregar o arquivo. Verifique se é um projeto NetPlanner válido.", "error"); } }; i.click(); };
 
   const exportHTML = () => {
     const html = generateViewerHTML(projectName, pages, clientInfo, scale, companyLogo);
@@ -881,6 +889,15 @@ export default function NetPlanner() {
   const lblS = { display: "block", fontSize: "10px", fontWeight: 600, color: T.textDim, marginBottom: "3px", letterSpacing: "0.3px" };
   const inpS = { width: "100%", padding: "7px 10px", borderRadius: "7px", border: `1px solid ${T.border}`, background: T.white, color: T.text, fontSize: "12px", outline: "none", boxSizing: "border-box" };
   const secT = { fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px", color: T.textDim, marginBottom: "6px", fontWeight: 700 };
+
+  // Spinner de carregamento inicial
+  if (!authLoaded) return (
+    <div style={{ display: "flex", height: "100vh", width: "100vw", alignItems: "center", justifyContent: "center", background: "#f5f6f8", flexDirection: "column", gap: "16px" }}>
+      <div style={{ width: "40px", height: "40px", border: "3px solid #dbeafe", borderTop: "3px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <span style={{ fontSize: "13px", color: "#94a3b8" }}>Carregando NetPlanner...</span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: T.bg, color: T.text, fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif", overflow: "hidden", userSelect: "none" }}>
@@ -995,8 +1012,8 @@ export default function NetPlanner() {
             <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px", flexShrink: 0 }} />
             <button onClick={() => fileRef.current?.click()} style={btnS()}><Upload size={13} /> Planta</button>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-            <button onClick={saveProject} style={btnS()} title="Salvar local (JSON)"><Save size={13} /></button>
-            <button onClick={loadProject} style={btnS()} title="Abrir local (JSON)"><FolderOpen size={13} /></button>
+            <button onClick={downloadProjectAsJSON} style={btnS()} title="Salvar local (JSON)"><Save size={13} /></button>
+            <button onClick={loadProjectFromFile} style={btnS()} title="Abrir local (JSON)"><FolderOpen size={13} /></button>
             {user && (
               <button onClick={cloudSave} style={{ ...btnS(), color: cloudSaving ? T.textDim : "#059669", background: T.white, border: `1px solid #d1fae5` }} title="Salvar na nuvem">
                 <Cloud size={13} /> {cloudSaving ? "..." : "Salvar"}
@@ -1407,7 +1424,7 @@ export default function NetPlanner() {
       })()}
 
       {/* ═══ AUTH GATE — não logado ═══ */}
-      {authLoaded && !user && (
+      {!user && (
         <div style={{ position: "fixed", inset: 0, zIndex: 99998, background: "rgba(15,23,42,0.92)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "16px", padding: "40px 48px", maxWidth: "440px", width: "90%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
             <div style={{ width: "56px", height: "56px", background: "#2563eb", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
@@ -1415,17 +1432,20 @@ export default function NetPlanner() {
             </div>
             <h2 style={{ margin: "0 0 8px", fontSize: "22px", fontWeight: 700, color: "#0f172a" }}>NetPlanner</h2>
             <p style={{ margin: "0 0 6px", fontSize: "14px", color: "#64748b" }}>Editor profissional de plantas de redes CFTV e infraestrutura.</p>
-            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "#94a3b8" }}>Assine um dos planos para ter acesso completo ao sistema.</p>
+            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "#94a3b8" }}>Assine um plano e comece a usar agora. 7 dias grátis em todos os planos.</p>
             <button onClick={() => setAuthModal(true)} style={{ width: "100%", padding: "13px", borderRadius: "10px", border: "none", cursor: "pointer", background: "#2563eb", color: "#fff", fontSize: "15px", fontWeight: 700, boxShadow: "0 4px 12px rgba(37,99,235,0.35)", marginBottom: "12px" }}>
               Entrar / Criar conta
             </button>
-            <p style={{ margin: 0, fontSize: "11px", color: "#cbd5e1" }}>Ao continuar você concorda com os Termos de Uso.</p>
+            <p style={{ margin: 0, fontSize: "11px", color: "#cbd5e1" }}>
+              Ao continuar você concorda com os{" "}
+              <button onClick={() => setTermosModal("termos")} style={{ background: "none", border: "none", cursor: "pointer", color: "#93c5fd", fontSize: "11px", textDecoration: "underline", padding: 0 }}>Termos de Uso</button>
+            </p>
           </div>
         </div>
       )}
 
       {/* ═══ PLAN GATE — logado mas sem plano pago ═══ */}
-      {authLoaded && user && profile && profile.plan === "free" && (
+      {user && profile && profile.plan === "free" && (
         <div style={{ position: "fixed", inset: 0, zIndex: 99997, background: "rgba(15,23,42,0.88)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "16px", padding: "36px 44px", maxWidth: "480px", width: "90%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
             <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
@@ -1440,8 +1460,9 @@ export default function NetPlanner() {
                 { id: "pro",        label: "Pro",      price: "R$149/mês", projects: "Ilimitado",    priceId: "price_pro", highlight: true },
                 { id: "enterprise", label: "Empresa",  price: "R$299/mês", projects: "Ilimitado",    priceId: "price_enterprise" },
               ].map(plan => (
-                <div key={plan.id} onClick={() => handleSubscribe(plan.priceId, plan.id)} style={{ flex: 1, border: plan.highlight ? "2px solid #2563eb" : "1.5px solid #e2e8f0", borderRadius: "10px", padding: "14px 10px", cursor: "pointer", background: plan.highlight ? "#eff6ff" : "#fff", transition: "box-shadow .15s" }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.15)"}
+                <div key={plan.id} onClick={() => !subscribing && handleSubscribe(plan.priceId)}
+                  style={{ flex: 1, border: plan.highlight ? "2px solid #2563eb" : "1.5px solid #e2e8f0", borderRadius: "10px", padding: "14px 10px", cursor: subscribing ? "not-allowed" : "pointer", background: plan.highlight ? "#eff6ff" : "#fff", opacity: subscribing ? 0.7 : 1, transition: "box-shadow .15s" }}
+                  onMouseEnter={e => { if (!subscribing) e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.15)"; }}
                   onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
                   {plan.highlight && <div style={{ fontSize: "9px", fontWeight: 700, color: "#2563eb", letterSpacing: "0.05em", marginBottom: "6px" }}>MAIS POPULAR</div>}
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>{plan.label}</div>
@@ -1450,7 +1471,8 @@ export default function NetPlanner() {
                 </div>
               ))}
             </div>
-            <p style={{ margin: "0 0 10px", fontSize: "11px", color: "#94a3b8" }}>7 dias grátis · Cancele quando quiser</p>
+            {subscribing && <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#2563eb", fontWeight: 600 }}>Redirecionando para o Stripe...</p>}
+            <p style={{ margin: "0 0 10px", fontSize: "11px", color: "#94a3b8" }}>7 dias grátis · Cartão de crédito · Cancele quando quiser</p>
             <button onClick={() => signOut()} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "12px", color: "#94a3b8", textDecoration: "underline" }}>
               Sair da conta
             </button>
@@ -1459,9 +1481,10 @@ export default function NetPlanner() {
       )}
 
       {/* ═══ AUTH / CLOUD MODALS ═══ */}
-      {authModal && <AuthModal onClose={() => setAuthModal(false)} />}
+      {authModal && <AuthModal onClose={() => setAuthModal(false)} onShowTermos={(tab) => { setAuthModal(false); setTermosModal(tab || "termos"); }} />}
       {plansModal && <PlansModal currentPlan={profile?.plan || "free"} user={user} onClose={() => setPlansModal(false)} onSubscribe={handleSubscribe} />}
-      {projectsModal && user && <ProjectsModal user={user} profile={profile} onClose={() => setProjectsModal(false)} onLoad={cloudLoad} onNew={() => { setPages([makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId("page-1"); setProjectName("Novo Projeto"); setCloudProjectId(null); }} currentProjectId={cloudProjectId} />}
+      {projectsModal && user && <ProjectsModal user={user} profile={profile} onClose={() => setProjectsModal(false)} onLoad={cloudLoad} onUpgrade={() => { setProjectsModal(false); setPlansModal(true); }} onNew={() => { setPages([makeBlankPage("page-1", "Pavimento 1")]); setCurrentPageId("page-1"); setProjectName("Novo Projeto"); setCloudProjectId(null); }} currentProjectId={cloudProjectId} cloudLoading={cloudLoading} />}
+      {termosModal && <TermosModal tab={termosModal} onClose={() => setTermosModal(null)} />}
 
       {/* ═══ TOAST ═══ */}
       {toast && (

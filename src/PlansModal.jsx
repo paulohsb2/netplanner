@@ -62,7 +62,7 @@ export default function PlansModal({ currentPlan = "free", user, onClose, onSubs
     if (plan.disabled || plan.id === currentPlan) return;
     setLoading(plan.id);
     try {
-      await onSubscribe(plan.priceId, plan.id);
+      await onSubscribe(plan.priceId);
     } finally {
       setLoading(null);
     }
@@ -81,7 +81,7 @@ export default function PlansModal({ currentPlan = "free", user, onClose, onSubs
             <Zap size={12} /> PLANOS NETPLANNER
           </div>
           <div style={{ fontSize: "24px", fontWeight: 800, color: T.text }}>Escolha o plano ideal</div>
-          <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "6px" }}>Cancele a qualquer momento · Cobrança em BRL · Pix, boleto ou cartão</div>
+          <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "6px" }}>7 dias grátis em todos os planos · Cartão de crédito · Cancele quando quiser</div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
@@ -136,7 +136,7 @@ export default function PlansModal({ currentPlan = "free", user, onClose, onSubs
         </div>
 
         <div style={{ textAlign: "center", marginTop: "20px", fontSize: "11px", color: T.textDim }}>
-          Os planos pagos incluem período de teste de 7 dias. Cobrança automática mensal. Cancele quando quiser pelo painel.
+          Os planos pagos incluem 7 dias de teste grátis. Cobrança automática mensal em BRL via cartão de crédito. Cancele quando quiser.
         </div>
       </div>
     </div>

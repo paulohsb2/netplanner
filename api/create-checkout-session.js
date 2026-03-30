@@ -43,6 +43,8 @@ export default async function handler(req, res) {
       metadata: { userId, priceId },
       allow_promotion_codes: true,
       locale: "pt-BR",
+    }, {
+      idempotencyKey: `checkout-${userId}-${resolvedPriceId}-${Math.floor(Date.now() / 60000)}`,
     });
 
     return res.status(200).json({ url: session.url });

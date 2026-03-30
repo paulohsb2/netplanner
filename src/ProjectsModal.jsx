@@ -16,7 +16,7 @@ function formatDate(iso) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export default function ProjectsModal({ user, profile, onClose, onLoad, onNew, currentProjectId }) {
+export default function ProjectsModal({ user, profile, onClose, onLoad, onNew, onUpgrade, currentProjectId, cloudLoading }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
@@ -69,8 +69,11 @@ export default function ProjectsModal({ user, profile, onClose, onLoad, onNew, c
         </div>
 
         {atLimit && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: "8px", padding: "10px 14px", fontSize: "11px", color: "#92400e", marginBottom: "14px" }}>
-            Limite de projetos atingido no plano {PLAN_LIMITS[plan]?.label}. Faça upgrade para criar mais projetos.
+          <div style={{ background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: "8px", padding: "10px 14px", fontSize: "11px", color: "#92400e", marginBottom: "14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+            <span>Limite atingido no plano {PLAN_LIMITS[plan]?.label}.</span>
+            <button onClick={() => { onClose(); onUpgrade && onUpgrade(); }} style={{ background: "#f59e0b", border: "none", cursor: "pointer", color: "#fff", fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", whiteSpace: "nowrap" }}>
+              Fazer upgrade
+            </button>
           </div>
         )}
 
@@ -89,7 +92,7 @@ export default function ProjectsModal({ user, profile, onClose, onLoad, onNew, c
             return (
               <div
                 key={p.id}
-                onClick={() => { onLoad(p.id); onClose(); }}
+                onClick={() => { if (!cloudLoading) { onLoad(p.id); onClose(); } }}
                 style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "10px", border: `1px solid ${isCurrent ? T.accent + "50" : T.borderLight}`, cursor: "pointer", background: isCurrent ? T.accentLight : T.white, transition: "all .15s" }}
               >
                 <FolderOpen size={18} color={isCurrent ? T.accent : T.textDim} />
