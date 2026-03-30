@@ -1,9 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const isConfigured = SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 10;
+
+export const supabase = isConfigured
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : {
+      auth: {
+        getSession: async () => ({ data: { session: null } }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword: async () => ({ error: { message: "Supabase não configurado" } }),
+        signUp: async () => ({ error: { message: "Supabase não configurado" } }),
+        signInWithOAuth: async () => ({ error: { message: "Supabase não configurado" } }),
+        signOut: async () => ({}),
+      },
+      from: () => ({
+        select: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }), order: () => ({ data: [], error: null }) }), order: () => ({ data: [], error: null }) }),
+        insert: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
+        update: () => ({ eq: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }) }) }),
+        delete: () => ({ eq: () => ({ eq: () => ({ data: null, error: null }) }) }),
+      }),
+    };
 
 /* ─── Plan limits ─── */
 export const PLAN_LIMITS = {

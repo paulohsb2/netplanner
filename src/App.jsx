@@ -984,63 +984,67 @@ export default function NetPlanner() {
 
       {/* ═══ MAIN ═══ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ background: T.toolbar, borderBottom: `1px solid ${T.border}`, padding: "5px 14px", display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-          {editingName ? <input autoFocus value={projectName} onChange={e => setProjectName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={e => e.key === "Enter" && setEditingName(false)} style={{ background: T.card, border: `1.5px solid ${T.accent}`, borderRadius: "5px", padding: "3px 8px", color: T.text, fontSize: "12px", fontWeight: 600, width: "140px" }} />
-          : <button onClick={() => setEditingName(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.text, fontSize: "12px", fontWeight: 700, marginRight: "4px" }}>{projectName}</button>}
-          <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
-          <button onClick={() => fileRef.current?.click()} style={btnS()}><Upload size={13} /> Planta</button>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          <button onClick={saveProject} style={btnS()} title="Salvar local (JSON)"><Save size={13} /></button>
-          <button onClick={loadProject} style={btnS()} title="Abrir local (JSON)"><FolderOpen size={13} /></button>
-          {user && (
-            <button onClick={cloudSave} style={{ ...btnS(), color: cloudSaving ? T.textDim : "#059669", background: T.white, border: `1px solid #d1fae5` }} title="Salvar na nuvem">
-              <Cloud size={13} /> {cloudSaving ? "..." : "Salvar"}
-            </button>
-          )}
-          {user && (
-            <button onClick={() => setProjectsModal(true)} style={{ ...btnS(), color: T.accent, background: T.white, border: `1px solid ${T.accentLight}` }} title="Projetos na nuvem">
-              <Cloud size={13} /> Projetos
-            </button>
-          )}
-          <button onClick={exportPNG} style={btnS()} disabled={!page.bgImage}><Download size={13} /> PNG</button>
-          <button onClick={() => setPdfDialog(true)} style={{ ...btnS(), background: pages.some(p => p.bgImage) ? T.accent : "transparent", color: pages.some(p => p.bgImage) ? "#fff" : T.textDim, borderRadius: "7px" }} disabled={!pages.some(p => p.bgImage)}><FileText size={13} /> PDF</button>
-          <button onClick={exportHTML} style={btnS()} title="Exportar visualizador 3D (HTML standalone)"><Box size={13} /> HTML 3D</button>
-          <button onClick={() => setCalcModal(true)} style={{ ...btnS(), color: T.success }} title="Calculadora de Bandwidth e Storage">BW/Stor</button>
-          <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
-          <button onClick={() => setView3D(v => !v)} style={{ ...btnS(view3D), background: view3D ? "#0f172a" : "transparent", color: view3D ? "#60a5fa" : T.textMuted, border: view3D ? "1.5px solid #1e3a5f" : "none" }} title={view3D ? "Voltar ao 2D" : "Visualizar em 3D"}><Box size={13} /> {view3D ? "2D" : "3D"}</button>
-          <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
-          <button onClick={() => { setTool("select"); setCableStart(null); }} style={btnS(tool === "select")}><MousePointer size={13} /></button>
-          <button onClick={() => setTool("pan")} style={btnS(tool === "pan")}><Move size={13} /></button>
-          <button onClick={() => { setTool("measure"); setMeasurePoints([]); }} style={btnS(tool === "measure")}><Ruler size={13} /></button>
-          <button onClick={() => setSnap(s => !s)} style={{ ...btnS(snap), background: snap ? "#f0fdf4" : "transparent", color: snap ? "#059669" : T.textMuted, border: snap ? "1.5px solid #059669" : "none" }} title="Snap ao grid (50px)"><Grid3X3 size={13} /></button>
-          <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px" }} />
-          <button onClick={undo} style={btnS()} disabled={!undoStack.length}><Undo2 size={13} /></button>
-          <button onClick={redo} style={btnS()} disabled={!redoStack.length}><Redo2 size={13} /></button>
-          <div style={{ flex: 1 }} />
-          {/* Auth area */}
-          {user ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", background: T.card, borderRadius: "8px", padding: "3px 8px", marginRight: "6px" }}>
-              <User size={12} color={T.textMuted} />
-              <span style={{ fontSize: "10px", color: T.textMuted, maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {user.email?.split("@")[0]}
-              </span>
-              <span style={{ fontSize: "9px", fontWeight: 700, color: (profile?.plan && profile.plan !== "free") ? "#7c3aed" : T.textDim, background: (profile?.plan && profile.plan !== "free") ? "#ede9fe" : T.borderLight, padding: "1px 5px", borderRadius: "3px" }}>
-                {PLAN_LIMITS[profile?.plan || "free"]?.label}
-              </span>
-              <button onClick={() => setPlansModal(true)} title="Planos" style={{ background: "none", border: "none", cursor: "pointer", color: "#7c3aed", display: "flex", padding: "1px" }}><Star size={11} /></button>
-              <button onClick={() => signOut()} title="Sair" style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, display: "flex", padding: "1px" }}><LogOut size={11} /></button>
+        <div style={{ background: T.toolbar, borderBottom: `1px solid ${T.border}`, padding: "5px 14px", display: "flex", alignItems: "center", gap: "4px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", minHeight: "38px" }}>
+          {/* LEFT — tool buttons (can overflow-scroll) */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, overflow: "hidden", minWidth: 0 }}>
+            {editingName ? <input autoFocus value={projectName} onChange={e => setProjectName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={e => e.key === "Enter" && setEditingName(false)} style={{ background: T.card, border: `1.5px solid ${T.accent}`, borderRadius: "5px", padding: "3px 8px", color: T.text, fontSize: "12px", fontWeight: 600, width: "140px" }} />
+            : <button onClick={() => setEditingName(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.text, fontSize: "12px", fontWeight: 700, marginRight: "4px", whiteSpace: "nowrap" }}>{projectName}</button>}
+            <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px", flexShrink: 0 }} />
+            <button onClick={() => fileRef.current?.click()} style={btnS()}><Upload size={13} /> Planta</button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+            <button onClick={saveProject} style={btnS()} title="Salvar local (JSON)"><Save size={13} /></button>
+            <button onClick={loadProject} style={btnS()} title="Abrir local (JSON)"><FolderOpen size={13} /></button>
+            {user && (
+              <button onClick={cloudSave} style={{ ...btnS(), color: cloudSaving ? T.textDim : "#059669", background: T.white, border: `1px solid #d1fae5` }} title="Salvar na nuvem">
+                <Cloud size={13} /> {cloudSaving ? "..." : "Salvar"}
+              </button>
+            )}
+            {user && (
+              <button onClick={() => setProjectsModal(true)} style={{ ...btnS(), color: T.accent, background: T.white, border: `1px solid ${T.accentLight}` }} title="Projetos na nuvem">
+                <Cloud size={13} /> Projetos
+              </button>
+            )}
+            <button onClick={exportPNG} style={btnS()} disabled={!page.bgImage}><Download size={13} /> PNG</button>
+            <button onClick={() => setPdfDialog(true)} style={{ ...btnS(), background: pages.some(p => p.bgImage) ? T.accent : "transparent", color: pages.some(p => p.bgImage) ? "#fff" : T.textDim, borderRadius: "7px" }} disabled={!pages.some(p => p.bgImage)}><FileText size={13} /> PDF</button>
+            <button onClick={exportHTML} style={btnS()} title="Exportar visualizador 3D (HTML standalone)"><Box size={13} /> HTML 3D</button>
+            <button onClick={() => setCalcModal(true)} style={{ ...btnS(), color: T.success }} title="Calculadora de Bandwidth e Storage">BW/Stor</button>
+            <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px", flexShrink: 0 }} />
+            <button onClick={() => setView3D(v => !v)} style={{ ...btnS(view3D), background: view3D ? "#0f172a" : "transparent", color: view3D ? "#60a5fa" : T.textMuted, border: view3D ? "1.5px solid #1e3a5f" : "none" }} title={view3D ? "Voltar ao 2D" : "Visualizar em 3D"}><Box size={13} /> {view3D ? "2D" : "3D"}</button>
+            <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px", flexShrink: 0 }} />
+            <button onClick={() => { setTool("select"); setCableStart(null); }} style={btnS(tool === "select")}><MousePointer size={13} /></button>
+            <button onClick={() => setTool("pan")} style={btnS(tool === "pan")}><Move size={13} /></button>
+            <button onClick={() => { setTool("measure"); setMeasurePoints([]); }} style={btnS(tool === "measure")}><Ruler size={13} /></button>
+            <button onClick={() => setSnap(s => !s)} style={{ ...btnS(snap), background: snap ? "#f0fdf4" : "transparent", color: snap ? "#059669" : T.textMuted, border: snap ? "1.5px solid #059669" : "none" }} title="Snap ao grid (50px)"><Grid3X3 size={13} /></button>
+            <div style={{ width: "1px", height: "20px", background: T.border, margin: "0 3px", flexShrink: 0 }} />
+            <button onClick={undo} style={btnS()} disabled={!undoStack.length}><Undo2 size={13} /></button>
+            <button onClick={redo} style={btnS()} disabled={!redoStack.length}><Redo2 size={13} /></button>
+          </div>
+          {/* RIGHT — auth + page name + zoom (always visible) */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, marginLeft: "6px" }}>
+            {user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", background: T.card, borderRadius: "8px", padding: "3px 8px" }}>
+                <User size={12} color={T.textMuted} />
+                <span style={{ fontSize: "10px", color: T.textMuted, maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {user.email?.split("@")[0]}
+                </span>
+                <span style={{ fontSize: "9px", fontWeight: 700, color: (profile?.plan && profile.plan !== "free") ? "#7c3aed" : T.textDim, background: (profile?.plan && profile.plan !== "free") ? "#ede9fe" : T.borderLight, padding: "1px 5px", borderRadius: "3px" }}>
+                  {PLAN_LIMITS[profile?.plan || "free"]?.label}
+                </span>
+                <button onClick={() => setPlansModal(true)} title="Planos" style={{ background: "none", border: "none", cursor: "pointer", color: "#7c3aed", display: "flex", padding: "1px" }}><Star size={11} /></button>
+                <button onClick={() => signOut()} title="Sair" style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, display: "flex", padding: "1px" }}><LogOut size={11} /></button>
+              </div>
+            ) : (
+              <button onClick={() => setAuthModal(true)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "8px", border: "none", cursor: "pointer", background: T.accent, color: "#fff", fontSize: "11px", fontWeight: 600, boxShadow: "0 1px 6px rgba(37,99,235,0.3)", whiteSpace: "nowrap" }}>
+                <LogIn size={12} /> Entrar
+              </button>
+            )}
+            <span style={{ fontSize: "10px", color: T.textDim, fontWeight: 500, whiteSpace: "nowrap" }}>{page.name}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "3px", background: T.card, borderRadius: "6px", padding: "3px 6px" }}>
+              <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Minus size={12} /></button>
+              <span style={{ fontSize: "10px", color: T.textMuted, minWidth: "36px", textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Plus size={12} /></button>
+              <button onClick={fitToScreen} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Maximize2 size={12} /></button>
             </div>
-          ) : (
-            <button onClick={() => setAuthModal(true)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "8px", border: "none", cursor: "pointer", background: T.accent, color: "#fff", fontSize: "11px", fontWeight: 600, marginRight: "6px", boxShadow: "0 1px 6px rgba(37,99,235,0.3)" }}>
-              <LogIn size={12} /> Entrar
-            </button>
-          )}
-          <span style={{ fontSize: "10px", color: T.textDim, marginRight: "6px", fontWeight: 500 }}>{page.name}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "3px", background: T.card, borderRadius: "6px", padding: "3px 6px" }}>
-            <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Minus size={12} /></button>
-            <span style={{ fontSize: "10px", color: T.textMuted, minWidth: "36px", textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Plus size={12} /></button>
-            <button onClick={fitToScreen} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, display: "flex" }}><Maximize2 size={12} /></button>
           </div>
         </div>
 
